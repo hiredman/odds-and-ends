@@ -14,6 +14,10 @@
             (uncurry (apply partial x y))
             (x))))
 
+(defn flip [x]
+      (fn [& y]
+          (apply x (reverse y))))
+
 (defmacro pl [& forms]
   (let [x (transform forms
                      #(= "·" (let [c (zip/node %)] (and (symbol? c) (name c))))
