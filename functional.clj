@@ -33,7 +33,8 @@
 (defmacro pl [& forms]
   (let [x (transform forms
                      #(= "·" (let [c (zip/node %)] (and (symbol? c) (name c))))
-                     #(-> % zip/remove (zip/insert-left 'clojure.core/comp) zip/next))
+                     #(let [n (list 'comp (zip/node (zip/left %)) (zip/node (zip/right %)))]
+                        (-> % zip/left (zip/replace n) zip/right zip/remove zip/up zip/right zip/remove)))
         x (transform x
                      #(= 9021 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
                      #(-> % (zip/replace (list 'uncurry (symbol (subs (name (zip/node %)) 1))))))
@@ -43,4 +44,7 @@
     `(do ~@x)))
 
 ;; (pl
-;;   (↕map (↕map (replicate 3 (range 3)) (call · (⌽map inc))) shuffle))
+;;   (↕map (range 5) inc · inc · inc))
+;; 
+;; (pl
+;;   (↕map (↕map (replicate 3 (range 3)) call · (⌽map inc)) shuffle))
