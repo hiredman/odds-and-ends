@@ -18,10 +18,12 @@
       (fn [& y]
           (apply x (reverse y))))
 
+(defn call [x] (x))
+
 (defmacro pl [& forms]
   (let [x (transform forms
                      #(= "·" (let [c (zip/node %)] (and (symbol? c) (name c))))
-                     #(-> % zip/remove (zip/insert-left 'clojure.core/comp)))
+                     #(-> % zip/remove (zip/insert-left 'clojure.core/comp) zip/next))
         x (transform x
                      #(= 9021 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
                      #(-> % (zip/replace (list 'uncurry (symbol (subs (name (zip/node %)) 1))))))]
