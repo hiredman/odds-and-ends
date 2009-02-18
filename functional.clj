@@ -8,6 +8,12 @@
                 (recur (fn se))
                 (recur (zip/next se))))))
 
+(defn uncurry [x]
+      (fn uc [& y]
+          (if (seq y)
+            (uncurry (apply partial x y))
+            (x))))
+
 (defmacro pl [& forms]
   (let [x (transform forms
                      #(= "·" (let [c (zip/node %)] (and (symbol? c) (name c))))
