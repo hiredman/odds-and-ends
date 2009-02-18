@@ -15,7 +15,7 @@
             (if (zip/end? se)
               (zip/root se)
               (if (pred se)
-                (recur (fn se))
+                (recur (zip/next (fn se)))
                 (recur (zip/next se))))))
 
 (defn uncurry [x]
@@ -34,7 +34,8 @@
   (let [x (transform forms
                      #(= "·" (let [c (zip/node %)] (and (symbol? c) (name c))))
                      #(let [n (list 'comp (zip/node (zip/left %)) (zip/node (zip/right %)))]
-                        (-> % zip/left (zip/replace n) zip/right zip/remove zip/up zip/right zip/remove)))
+                        (-> % zip/left (zip/insert-left n)
+                            zip/remove zip/next zip/remove zip/next zip/remove)))
         x (transform x
                      #(= 9021 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
                      #(-> % (zip/replace (list 'uncurry (symbol (subs (name (zip/node %)) 1))))))
@@ -44,7 +45,11 @@
     `(do ~@x)))
 
 ;; (pl
-;;   (↕map (range 5) inc · inc · inc))
-;; 
+;;   (↕map (replicate 3
+;;                    (↕apply (vector (↕map (range 10) inc · inc · inc))
+;;                            call · (⌽* 10) · call · (⌽+ -2)
+;;                            map))
+;;         shuffle))
+ 
 ;; (pl
 ;;   (↕map (↕map (replicate 3 (range 3)) call · (⌽map inc)) shuffle))
