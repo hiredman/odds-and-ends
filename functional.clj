@@ -49,16 +49,5 @@
                      #(-> % (zip/replace (list 'flip (symbol (subs (name (zip/node %)) 1))))))]
     `(do ~@x)))
 
-(pl (↕map (replicate 3 (↕apply (vector (↕map (range 10) inc · inc · inc)) call · ⌽* $ 10 · call · (⌽+ -2) map)) shuffle))
- 
-;; (pl
-;;   (↕map (↕map (replicate 3 (range 3)) call · (⌽map inc)) shuffle))
-
-
-(transform '(a call · ⌽b $ c $ d)
-           #(= "$" (let [c (zip/node %)] (and (symbol? c) (name c))))
-           #(let [n (list (zip/node (zip/left %)) (zip/node (zip/right %)))]
-                        (-> % zip/left (zip/insert-left n)
-                            zip/remove zip/next zip/remove zip/next zip/remove)))
-
-(pl ())
+;; (pl (↕map (replicate 3 (↕apply (vector (↕map (range 10) inc · inc · inc)) call · ⌽* $ 10 · call · (⌽+ -2) map)) shuffle))
+;; (pl (map call · ⌽+ $ 5 range $ 5))
