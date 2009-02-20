@@ -19,12 +19,11 @@
       "ugh, read the source. this started as a very specific function
       and turned into a very generic one."
       [se pred fn adv fin]
-      (loop [se se]
-            (if (fin se)
-              se
-              (if (pred se)
-                (recur (adv (fn se)))
-                (recur (adv se))))))
+      (if (fin se)
+        se
+        (if (pred se)
+          (recur (adv (fn se)) pred fn adv fin)
+          (recur (adv se) pred fn adv fin))))
 
 (defn transforml
       "like transformr, but walks the zipper from the left"
