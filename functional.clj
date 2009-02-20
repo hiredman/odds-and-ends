@@ -71,7 +71,12 @@
                   #(= 8597 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
                   #(-> % (zip/replace (list 'flip (symbol (subs (name (zip/node %)) 1)))))))
 
-(defmacro pl [& forms]
+(defmacro pl
+  "replaces a $ b with (a b) walking right to left
+  replaces a · b with (comp a b) left to right
+  ⌽a with (uncurry a) left to right
+  ↕a with (flip a) left to right"
+  [& forms]
   `(do ~@(-> forms zip/seq-zip fast-fwd dollar-sign-application
              interpunc-comp zip/root zip/seq-zip
              prefix-uncurry zip/root zip/seq-zip
