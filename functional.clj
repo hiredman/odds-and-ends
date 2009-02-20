@@ -1,10 +1,13 @@
 (require '[clojure.zip :as zip])
+(import '(java.util LinkedList Collections))
 
 ;(load-file "/home/kpd/odds-and-ends/functional.clj")
 
-(import '(java.util LinkedList Collections))
-
-(defn shuffle [x]
+(defn shuffle
+      "return a shuffled collection of the same type
+      and constituted from the same elementss as the
+      collection passed in"
+      [x]
       (let [a (LinkedList. x)]
         (Collections/shuffle a)
         (cond
@@ -12,7 +15,10 @@
           (set? x)    (set a)
           (seq? x)    (seq a))))
 
-(defn transform [se pred fn adv fin]
+(defn transform
+      "ugh, read the source. this started as a very specific function
+      and turned into a very generic one."
+      [se pred fn adv fin]
       (loop [se se]
             (if (fin se)
               se
@@ -20,10 +26,16 @@
                 (recur (adv (fn se)))
                 (recur (adv se))))))
 
-(defn transforml [se pred fn]
+(defn transforml
+      "like transformr, but walks the zipper from the left"
+      [se pred fn]
       (transform se pred fn zip/next zip/end?))
 
-(defn transformr [se pred fn]
+(defn transformr
+      "takes a zipper, a predicate, and a function
+      walks the zipper from the current node towards the left
+      until the the end. fn is applied to any loc where pred is true"
+      [se pred fn]
       (transform se pred fn zip/prev (comp not zip/prev)))
 
 (def #^{:doc "fast forward the loc of a zipper to the lastnode reached by zip/next"}
@@ -32,17 +44,23 @@
            (partial take-while (comp not zip/end? zip/next))
            (partial iterate zip/next)))
 
-(defn uncurry [x]
+(defn uncurry
+      "applied to a function it returns a function that will continue
+      partially applying until it is called with no arguments"
+      [x]
       (fn uc [& y]
           (if (seq y)
             (uncurry (apply partial x y))
             (x))))
 
-(defn flip [x]
+(defn flip
+      "takes a function and returns a function that takes
+      arguments in the opposite order"
+      [x]
       (fn [& y]
           (apply x (reverse y))))
 
-(defn call [x & y] (apply x y))
+(defn call "(apply x y)" [x & y] (apply x y))
 
 (defn dollar-sign-application
       "walks backwards through a zipper turning a $ b into (a b)"
