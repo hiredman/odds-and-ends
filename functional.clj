@@ -41,27 +41,41 @@
 
 (defn call [x & y] (apply x y))
 
+(defn dollar-sign-application
+      "walks backwards through a zipper turning a $ b into (a b)"
+      [zip]
+      (transformr zip
+                  #(= "$" (and (symbol? (zip/node %)) (name (zip/node %))))
+                  #(let [n (list (zip/node (zip/left %)) (zip/node (zip/right %)))]
+                     (-> % zip/remove (zip/insert-left n) zip/right zip/remove zip/remove))))
+
+(defn interpunc-comp
+      "walks through a zipper tuning a · b into (comp a b)"
+      [zip]
+      (transforml zip
+                  #(= "·" (let [c (zip/node %)] (and (symbol? c) (name c))))
+                  #(let [n (list 'comp (zip/node (zip/left %)) (zip/node (zip/right %)))]
+                     (-> % zip/left (zip/insert-left n)
+                         zip/remove zip/next zip/remove zip/next zip/remove))))
+(defn prefix-uncurry
+      "walks through a zipper and turns ⌽a into (uncurry a)"
+      [zip]
+      (transforml zip
+                  #(= 9021 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
+                  #(-> % (zip/replace (list 'uncurry (symbol (subs (name (zip/node %)) 1)))))))
+
+(defn prefix-flip
+      "walks through a zipper and turns ↕a into (flip a)"
+      [zip]
+      (transforml zip
+                  #(= 8597 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
+                  #(-> % (zip/replace (list 'flip (symbol (subs (name (zip/node %)) 1)))))))
+
 (defmacro pl [& forms]
-  (let [x (zip/seq-zip forms)
-        x (transformr (fast-fwd x)
-                      #(= "$" (and (symbol? (zip/node %)) (name (zip/node %))))
-                      #(let [n (list (zip/node (zip/left %)) (zip/node (zip/right %)))]
-                         (-> % zip/remove (zip/insert-left n) zip/right zip/remove zip/remove)))
-        x (transforml x
-                     #(= "·" (let [c (zip/node %)] (and (symbol? c) (name c))))
-                     #(let [n (list 'comp (zip/node (zip/left %)) (zip/node (zip/right %)))]
-                        (-> % zip/left (zip/insert-left n)
-                            zip/remove zip/next zip/remove zip/next zip/remove)))
-        x (zip/seq-zip (zip/root x))
-        x (transforml x
-                     #(= 9021 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
-                     #(-> % (zip/replace (list 'uncurry (symbol (subs (name (zip/node %)) 1))))))
-        x (zip/seq-zip (zip/root x))
-        x (transforml x
-                     #(= 8597 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
-                     #(-> % (zip/replace (list 'flip (symbol (subs (name (zip/node %)) 1))))))
-        x (zip/root x)]
-    `(do ~@x)))
+  `(do ~@(-> forms zip/seq-zip fast-fwd dollar-sign-application
+             interpunc-comp zip/root zip/seq-zip
+             prefix-uncurry zip/root zip/seq-zip
+             prefix-flip zip/root)))
 
 (pl
   (↕map (replicate 3 (↕apply vector $ (↕map range $ 10 inc · inc · inc) call · ⌽* $ 10 · call · (⌽+ -2) map)) shuffle))
