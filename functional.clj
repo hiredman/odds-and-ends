@@ -1,5 +1,7 @@
 (require '[clojure.zip :as zip])
 
+;(load-file "/home/kpd/odds-and-ends/functional.clj")
+
 (import '(java.util LinkedList Collections))
 
 (defn shuffle [x]
@@ -24,10 +26,11 @@
 (defn transformr [se pred fn]
       (transform se pred fn zip/prev (comp not zip/prev)))
 
-(defn fast-fwd [se]
-      (if (zip/end? (zip/next se))
-        se
-        (recur (zip/next se))))
+(def #^{:doc "fast forward the loc of a zipper to the lastnode reached by zip/next"}
+     fast-fwd
+     (comp last
+           (partial take-while (comp not zip/end? zip/next))
+           (partial iterate zip/next)))
 
 (defn uncurry [x]
       (fn uc [& y]
@@ -82,8 +85,8 @@
              prefix-uncurry zip/root zip/seq-zip
              prefix-flip zip/root)))
 
-(pl
-  (↕map (replicate 3 (↕apply vector $ (↕map range $ 10 inc · inc · inc) call · ⌽* $ 10 · call · (⌽+ -2) map)) shuffle))
+;; (pl
+;;   (↕map (replicate 3 (↕apply vector $ (↕map range $ 10 inc · inc · inc) call · ⌽* $ 10 · call · (⌽+ -2) map)) shuffle))
  
 ;; (pl
 ;;   (↕map (↕map (replicate 3 (range 3)) call · (⌽map inc)) shuffle))
