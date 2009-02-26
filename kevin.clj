@@ -1058,3 +1058,6 @@
                      #(-> % (zip/replace (list 'uncurry (symbol (subs (name (zip/node %)) 1))))))
         ]
     `(do ~@x)))
+
+(def bytes
+     (comp (partial format "%08d")))
