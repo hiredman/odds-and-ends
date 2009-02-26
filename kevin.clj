@@ -1059,5 +1059,8 @@
         ]
     `(do ~@x)))
 
-(def bytes
-     (comp (partial format "%08d")))
+(def binary
+     (comp (partial format "%08d")
+           #(Integer/parseInt %)
+           #(Integer/toBinaryString %)
+           int))
