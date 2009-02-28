@@ -1058,3 +1058,17 @@
                      #(-> % (zip/replace (list 'uncurry (symbol (subs (name (zip/node %)) 1))))))
         ]
     `(do ~@x)))
+
+;http://funcall.blogspot.com/2008/03/problem-with-monads.html
+;(define (bind M f)
+;  (lambda (ma)
+;      (let* ((intermediate (M ma))
+;                 (i-state (get-state intermediate))
+;                            (i-value (get-value intermediate))
+;                                       (next    (f i-value)))
+;                                             (next i-state))))
+
+(defn bind [M f]
+      (fn [me]))
+
+
