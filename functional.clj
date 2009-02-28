@@ -73,7 +73,7 @@
       "walks through a zipper tuning a · b into (comp a b)"
       [zip]
       (transforml zip
-                  #(= "·" (let [c (zip/node %)] (and (symbol? c) (name c))))
+                  #(= "·" (let [c (zip/node %)] (when (symbol? c) (name c))))
                   #(let [n (list 'comp (zip/node (zip/left %)) (zip/node (zip/right %)))]
                      (-> % zip/left (zip/insert-left n)
                          zip/remove zip/next zip/remove zip/next zip/remove))))
@@ -103,9 +103,8 @@
              prefix-uncurry zip/root zip/seq-zip
              prefix-flip zip/root)))
 
-
-(assert (= '(do (inc (inc 1))) (macroexpand-1 '(pl inc $ inc $ 1))))
-(assert (= '(do ((flip map) (range 3) inc)) (macroexpand-1 '(pl (↕map range $ 3 inc)))))
-(assert (= '(do ((flip map) (replicate 3 ((flip apply) (vector ((flip map) (range 10) (comp (comp inc inc) inc))) (comp (comp (comp call ((uncurry *) 10)) call) ((uncurry +) -2)) map)) shuffle))
-            (macroexpand-1 '(pl (↕map (replicate 3 (↕apply vector $ (↕map range $ 10 inc · inc · inc) call · ⌽* $ 10 · call · (⌽+ -2) map)) shuffle)))))
-(assert (= '((1 2 3) (1 2 3) (1 2 3)) (pl (↕map (replicate 3 (range 3)) call · (⌽map inc)))))
+;; (assert (= '(do (inc (inc 1))) (macroexpand-1 '(pl inc $ inc $ 1))))
+;; (assert (= '(do ((flip map) (range 3) inc)) (macroexpand-1 '(pl (↕map range $ 3 inc)))))
+;; (assert (= '(do ((flip map) (replicate 3 ((flip apply) (vector ((flip map) (range 10) (comp (comp inc inc) inc))) (comp (comp (comp call ((uncurry *) 10)) call) ((uncurry +) -2)) map)) shuffle))
+;;             (macroexpand-1 '(pl (↕map (replicate 3 (↕apply vector $ (↕map range $ 10 inc · inc · inc) call · ⌽* $ 10 · call · (⌽+ -2) map)) shuffle)))))
+;; (assert (= '((1 2 3) (1 2 3) (1 2 3)) (pl (↕map (replicate 3 (range 3)) call · (⌽map inc)))))
