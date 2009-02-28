@@ -77,6 +77,7 @@
                   #(let [n (list 'comp (zip/node (zip/left %)) (zip/node (zip/right %)))]
                      (-> % zip/left (zip/insert-left n)
                          zip/remove zip/next zip/remove zip/next zip/remove))))
+
 (defn prefix-uncurry
       "walks through a zipper and turns ⌽a into (uncurry a)"
       [zip]
