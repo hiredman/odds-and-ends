@@ -1,4 +1,4 @@
-(ns hiremdna.crypto
+(ns hiredman.crypto
     (:import (java.io FileInputStream FileOutputStream File FileWriter FileReader InputStreamReader OutputStreamWriter BufferedReader)
              (javax.crypto Cipher KeyGenerator CipherInputStream CipherOutputStream)
 			 (javax.crypto.spec SecretKeySpec)))
@@ -43,24 +43,24 @@
 			cop-s (CipherInputStream. op-s c)]
 		(-> cop-s InputStreamReader.)))
 
-(let [k (generate-key)
-      c (cipher)
-      cleartext (.getBytes "foo")
-      ciphertext (.doFinal
-                   (doto c (.init Cipher/ENCRYPT_MODE k))
-                   cleartext)
-      cleartext2 (.doFinal
-                   (doto c (.init Cipher/DECRYPT_MODE k))
-                   ciphertext)
-	  _ (write-key k "/tmp/34")
-	  k2 (read-key "/tmp/34")]
-  (assert (= (seq cleartext) (seq cleartext2)))
-  (assert (= k k2))
-  (with-open [o (cipher-writer k "/tmp/34")]
-			 (.write o "foobar baz"))
-  (assert (= "foobar baz" (with-open [i (java.io.BufferedReader. (cipher-reader k "/tmp/34"))] (.readLine i)))))
+;; (let [k (generate-key)
+;;       c (cipher)
+;;       cleartext (.getBytes "foo")
+;;       ciphertext (.doFinal
+;;                    (doto c (.init Cipher/ENCRYPT_MODE k))
+;;                    cleartext)
+;;       cleartext2 (.doFinal
+;;                    (doto c (.init Cipher/DECRYPT_MODE k))
+;;                    ciphertext)
+;; 	  _ (write-key k "/tmp/34")
+;; 	  k2 (read-key "/tmp/34")]
+;;   (assert (= (seq cleartext) (seq cleartext2)))
+;;   (assert (= k k2))
+;;   (with-open [o (cipher-writer k "/tmp/34")]
+;; 			 (.write o "foobar baz"))
+;;   (assert (= "foobar baz" (with-open [i (java.io.BufferedReader. (cipher-reader k "/tmp/34"))] (.readLine i)))))
 
-(let [key (generate-key)]
-  (with-open [outp (cipher-writer key "/home/hiredman/two")]
-			 (write-key key "/home/hiredman/two.key")
-			 (.write outp (slurp "/home/hiredman/.two"))))
+;; (let [key (generate-key)]
+;;   (with-open [outp (cipher-writer key "/home/hiredman/two")]
+;;(write-key key "/home/hiredman/two.key")
+;;(.write outp (slurp "/home/hiredman/.two"))))
