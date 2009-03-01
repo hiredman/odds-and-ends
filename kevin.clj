@@ -694,7 +694,6 @@
 
 (macroexpand '(pl ((c · d) · (a · b))))
 
-<<<<<<< TREE
 (⌽ java.util.concurrent.Callable (fn [a] a))
 
 (⌽ java.util.concurrent.Executors
@@ -894,7 +893,6 @@
             method (.getDeclaredMethod sysclass "addURL" parameters)
             _ (.setAccessible method true)]
         (.invoke method sysloader (into-array Object [(.toURL (java.io.File. path))]))))
-<<<<<<< TREE
 
 (defstruct monad :wrap :pass :value)
 
@@ -1025,9 +1023,6 @@
         (doto window .pack (.setVisible true))
         (.start (reader-thread pi-out text-area))
         (.start (reader-thread pi-error text-area))))
-=======
->>>>>>> MERGE-SOURCE
->>>>>>> MERGE-SOURCE
 
 (defmacro f [& x]
       `(try
@@ -1059,9 +1054,19 @@
         ]
     `(do ~@x)))
 
-(defn f [a]
-      (try
-        (read a)
-        (catch Exception e e)))
+(def binary
+     (comp (partial format "%08d")
+           #(Integer/parseInt %)
+           #(Integer/toBinaryString %)
+           int))
+;http://funcall.blogspot.com/2008/03/problem-with-monads.html
+;(define (bind M f)
+;  (lambda (ma)
+;      (let* ((intermediate (M ma))
+;                 (i-state (get-state intermediate))
+;                            (i-value (get-value intermediate))
+;                                       (next    (f i-value)))
+;                                             (next i-state))))
 
-(f '#=())
+(defn bind [M f]
+      (fn [me]))
