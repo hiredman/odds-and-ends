@@ -31,16 +31,22 @@
 				   (.read f buf)
 				   (SecretKeySpec. buf "DES"))))
 
+(defn cipher-output-stream [key stream]
+	  (let [c (doto (cipher) (.init Cipher/ENCRYPT_MODE key))]
+		(-> stream (CipherOutputStream. c))))
+
+(defn cipher-input-stream [key stream]
+	  (let [c (doto (cipher) (.init Cipher/DECRYPT_MODE key))]
+		(-> stream (CipherInputStream. c))))
+
 (defn cipher-writer [key file]
-	  (let [c (doto (cipher) (.init Cipher/ENCRYPT_MODE key))
-			op-s (-> file File. FileOutputStream.)
-			cop-s (CipherOutputStream. op-s c)]
+	  (let [op-s (-> file File. FileOutputStream.)
+			cop-s (cipher-output-stream key op-s)]
 		(-> cop-s OutputStreamWriter.)))
 
 (defn cipher-reader [key file]
-	  (let [c (doto (cipher) (.init Cipher/DECRYPT_MODE key))
-			op-s (-> file File. FileInputStream.)
-			cop-s (CipherInputStream. op-s c)]
+	  (let [op-s (-> file File. FileInputStream.)
+			cop-s (cipher-input-stream key op-s)]
 		(-> cop-s InputStreamReader.)))
 
 ;; (let [k (generate-key)
@@ -59,8 +65,3 @@
 ;;   (with-open [o (cipher-writer k "/tmp/34")]
 ;; 			 (.write o "foobar baz"))
 ;;   (assert (= "foobar baz" (with-open [i (java.io.BufferedReader. (cipher-reader k "/tmp/34"))] (.readLine i)))))
-
-;; (let [key (generate-key)]
-;;   (with-open [outp (cipher-writer key "/home/hiredman/two")]
-;;(write-key key "/home/hiredman/two.key")
-;;(.write outp (slurp "/home/hiredman/.two"))))
