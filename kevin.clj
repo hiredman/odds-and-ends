@@ -1058,3 +1058,10 @@
                      #(-> % (zip/replace (list 'uncurry (symbol (subs (name (zip/node %)) 1))))))
         ]
     `(do ~@x)))
+
+(defn f [a]
+      (try
+        (read a)
+        (catch Exception e e)))
+
+(f '#=())
