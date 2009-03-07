@@ -1070,3 +1070,40 @@
 
 (defn bind [M f]
       (fn [me]))
+
+(defn typer [character]
+      (let [c (int character)]
+        (cond
+          (> c 64)
+            :character
+          (and (< c 58) (> c 47))
+            :number
+          (#{32 10} c)
+            :whitespace
+          :else
+            :punc)))
+
+(defn tokener [string]
+      (loop [[i & n] string buf [] out [] type nil]
+            (if i 
+              (do
+                (condp = type
+                     (typer i)
+                      (recur n (conj buf i) out type)
+                     nil
+                      (recur (cons i n) buf out (typer i))
+                     (recur (cons i n) [] (conj out [type (apply str buf)]) (typer i))))
+              (conj out [type (apply str buf)]))))
+
+(def make-pattern (comp seq (partial map first) tokener))
+
+(defn matcher [pattern string]
+      (loop [[pf & pr] pattern [inf & inr] (make-pattern string) match? true]
+            (if (and pf match? inf)
+              (if (or (= pf inf)
+                      (pf inf))
+                (recur pr inr match?)
+                false)
+              match?)))
+
+(matcher (make-pattern "a: a1") "hello, friend1234")
