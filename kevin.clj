@@ -1097,13 +1097,38 @@
 
 (def make-pattern (comp seq (partial map first) tokener))
 
-(defn matcher [pattern string]
-      (loop [[pf & pr] pattern [inf & inr] (make-pattern string) match? true]
-            (if (and pf match? inf)
-              (if (or (= pf inf)
-                      (pf inf))
-                (recur pr inr match?)
-                false)
-              match?)))
+(defmulti === (fn [x y]
+                  (cond
+                    (map? x)
+                      :map
+                    (and (not (keyword? x)) (ifn? x))
+                      :callable)) :default nil)
+(defmethod === :callable [x y] (x y))
+(defmethod === nil [x y] (= x y))
+(defmethod === :map [x y]
+  (cond
+    (and (< 0 (:count x)) (= y (:type x)))
+      true
+    (and (> 0 (:count x)) (not= y (:type x)))
+      true
+    :else
+      false))
 
-(matcher (make-pattern "a: a1") "hello, friend1234")
+(defn matcher
+      ([pattern string]
+       (matcher pattern (make-pattern string) true))
+      ([[pf & pr] [inf & inr] match?]
+       (cond
+         (not (and pf match? inf))
+          (when match? (if inf (cons inf inr) match?))
+         (vector? pf)
+          (some #(matcher % (cons inf inr) match?) pf)
+         (and (map? pf) (== pf inf))
+          (recur (cons (update-in pf [:count] dec) pr) inr match?)
+         (=== pf inf)
+          (recur pr inr match?)
+         :else
+          false)))
+
+(matcher [#{:number :punc} [[{:type :character :count 3}] [{:type :punc :count 3}]]]
+         "1   ")
