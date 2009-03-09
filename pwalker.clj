@@ -14,8 +14,6 @@
 
 (defn walk [dir dir-fn file-fn r]
        (let [files (.listFiles #^File dir)
-             f (seq (filter #(.isDirectory #^File %) files))
-             d (seq (filter #(not (.isDirectory #^File %)) files))
              [++1 +-1] (if r
                          [#(dosync (alter r inc)) #(dosync (alter r dec))]
                          (repeat 2 #(do nil)))]
