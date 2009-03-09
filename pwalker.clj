@@ -2,33 +2,43 @@
     (:import (java.io File)
              (java.util.concurrent ThreadPoolExecutor TimeUnit LinkedBlockingQueue)))
 
-(def runner (ThreadPoolExecutor. (+ 1 (.availableProcessors (Runtime/getRuntime)))
+(def #^{:private true}
+     runner (ThreadPoolExecutor. (+ 1 (.availableProcessors (Runtime/getRuntime)))
                                  (+ 1 (.availableProcessors (Runtime/getRuntime)))
                                  (long 10000)
                                  TimeUnit/MINUTES
                                  (LinkedBlockingQueue.)))
 
-(defn walk
-      "walks a directory recursively, queing up recursive walks
-      on a threadpoolexecutor. returns a list of files"
-      ([dir]
-       (let [result (ref []) co-ord (ref 1)]
-         (.execute runner #^Callable #(do
-                                        (walk (File. dir) result co-ord)
-                                        (dosync (alter co-ord dec))))
-         (loop []
-               (when (> @co-ord 0)
-                 (recur)))
-         @result))
-      ([dir results co]
-       (let [files (.listFiles dir)
-            f (seq (filter #(.isDirectory %) files))
-            d (seq (filter #(not (.isDirectory %)) files))]
-           (doseq [fi f]
-                  (dosync (alter co inc))
-                  (.execute runner #^Callable #(do
-                                                 (walk fi results co)
-                                                 (dosync (alter co dec)))))
-           (doseq [di d]
-                  (dosync
-                    (alter results conj di))))))
+(defn- execute [#^Callable fn]
+       (.execute #^ThreadPoolExecutor runner fn))
+
+(defn walk [dir dir-fn file-fn r]
+       (let [files (.listFiles #^File dir)
+             f (seq (filter #(.isDirectory #^File %) files))
+             d (seq (filter #(not (.isDirectory #^File %)) files))
+             [++1 +-1] (if r
+                         [#(dosync (alter r inc)) #(dosync (alter r dec))]
+                         (repeat 2 #(do nil)))]
+         (doseq [entry files]
+                (++1)
+                (if (.isDirectory entry)
+                  (execute #(do
+                              (dir-fn entry)
+                              (walk entry dir-fn file-fn r)
+                              (+-1)))
+                  (do
+                    (file-fn entry)
+                    (+-1))))))
+
+(defn collect-files [dir & opt]
+      (let [q (LinkedBlockingQueue.)
+            f (fn f [#^LinkedBlockingQueue q]
+                  (lazy-seq
+                    (when (.peek q)
+                      (cons (.take q) (f q)))))
+            fil (if opt (first opt) identity) 
+            x #(when (fil %) (.put q %))
+            count (ref 0)]
+        (walk (File. #^String dir) identity x count)
+        (take-while #(when (or (not= 0 @count) %) %)
+                    (repeatedly #(.poll q)))))
