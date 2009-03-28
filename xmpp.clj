@@ -8,39 +8,12 @@
              (org.jivesoftware.smackx.filetransfer FileTransferManager)
              (java.io File)))
 
-;returned by connect, slot for the "client" or "connection" object
-;and a lot for caching chat objects
-(defstruct xmpp :connection :chats)
-
-(defn connect
-      "return an xmpp struct"
-      [jid pass]
-      (struct xmpp
-              (doto (XMPPConnection. (last (.split jid "@")))
-                    (.connect)
-                    (.login (first (.split jid "@")) pass))
-              {}))
-
 (defn presence [type & msg]
       (let [p (Presence. (Presence$Type/valueOf (name type)))]
         (when msg
           (.setStatus p (apply str msg)))
         p))
 
-
-(defn msg-listener [func]
-      (proxy [org.jivesoftware.smack.MessageListener] []
-             (processMessage [& args]
-                             (apply func args ))))
-
-(defmacro message-lr
-  "macro to generate a message listener with selected symbols bound to
-  the chat and message object"
-  [ch me & body]
-  `(proxy [org.jivesoftware.smack.MessageListener] []
-          (processMessage [c# m#]
-                          (let [~ch c# ~me m#]
-                            ~@body))))
 
 (defn roster-listener [func]
       (proxy [RosterListener] []
@@ -49,21 +22,6 @@
 
 (defn create-chat [conn who ml]
       (.createChat (.getChatManager conn) who ml))
-
-(defn chat [conn who]
-      (if ((:chats conn) who)
-        conn
-        (assoc-in conn
-                  [:chats who]
-                  (create-chat (:connection conn)
-                               who
-                               (msg-listener (fn [& _] nil))))))
-
-(defn msg [conn who msg]
-      (let [conn (chat conn who)
-            chat ((:chats conn) who)]
-        (.sendMessage chat msg)
-        conn))
 
 (defn add-ml [conn who ml]
       (let [conn (chat conn who)]
@@ -165,16 +123,6 @@
         '(org.jivesoftware.smackx.filetransfer FileTransferManager)
         '(java.io File))
 
-
-              (doto (XMPPConnection. (last (.split jid "@")))
-                    (.connect)
-                    (.login (first (.split jid "@")) pass))
-
-(def c (XMPPConnection. "thelastcitadel.com"))
-
-(.connect c)
-
-(.login c "drone1" "1enord")
 
 (defn connect [jid pass]
       (doto (XMPPConnection. (last (.split jid "@")))
