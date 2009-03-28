@@ -1,165 +1,267 @@
 <?php
 
-function array_push_assoc($array, $key, $value){
- $array[$key] = $value;
-  return $array;
-  }
-
-class Node {
-  private $value = null;
-  private $next = null;
-  function __construct($v, &$ptr=null){
-    $this->value = $v;
-    $this->next = $ptr;}
-  function __toString() {
-    return "".$this->value;}
-  function &car () {
-    return $this->value;}
-  function &cdr () {
-    return $this->next;}}
-
-class LList {
-  private $list = null;
-  private $len = null;
-  function __construct (&$x=null) {
-    if ($x != null) {
-      $this->list = $x;}
-    else {
-      $this->list = null;}}
-  function cons ($item){
-    return new LList(new Node($item, $this->list));}
-  function first () {
-    if ($this->list == null)
-      return null;
-    else 
-      return $this->list->car();}
-  function rest () {
-    if ($this->list == null)
-      return $this;
-    else
-      return new LList($this->list->cdr());}
-  function Pempty () {
-    if ($this->list == null)
-      return true;
-    else
-      return false;}
-  function toArray () {
-    $a=array();
-    for($n=$this;!$n->Pempty();$n=$n->rest())
-      array_push($a,$n->first());
-    return $a;}
-  function length () {
-    if ($this->len == null){
-      $i=0;
-      if($this->list != null)
-        for($i++,$n=$this->list;$n->cdr() != null; $n=$n->cdr()) { $i++;}
-      $this->len=$i;}
-    return $this->len;}
-  function reverse () {
-    $l=new LList();
-    for($n=$this;!$n->Pempty();$n=$n->rest()) {
-      $l=$l->cons($n->first());}
-    return $l;}
-  function __toString () {
-    $s="";
-    for($n=$this;!$n->Pempty();$n=$n->rest()) {
-      $s=$s." ".$n->first();}
-    return "(".trim($s).")";}
-  public static function llist () {
-    $x=func_get_args();
-    $x=array_reverse($x);
-    $y=new LList();
-    foreach($x as $i)
-      $y=$y->cons($i);
-    return $y;}
-  function type () {return "list";}}
-
 class Symbol {
-  private $string=null;
-  function __construct ($string) {
-    $this->string=$string;}
-  function get () {
-    return "$".$this->string;}
-  function __toString() {
-    return "".$this->string;}
-  function type () {return "symbol";}}
-
-class AArray {
-  private $arr=null;
-  function __construct ($arr) {
-    $this->arr=$arr;}
-  function get () {
-    return $this->arr;}
-  function __toString () {
-    $buf="";
-    for($i=0;$i<sizeof($this->arr);$i++) {
-      $buf.=" ".$this->arr[$i];}
-    return "[".trim($buf)."]";}}
-
-class Keyword {
-  private $name=null;
+  static $t = null;
+  private $name = null;
   function __construct ($name) {
-    $this->name = $name;}
+	$this->name = $name;}
   function __toString () {
-    return ":".$this->name;}
-  function type () {return "keyword";}}
+	return $this->name;}
+  function type () {
+    $this->t = ($this->t == null) ? new Symbol ("symbol") : $this->t;
+    return $this->t;}
+  function call ($args) {
+    return $this->eval1(null)->call($args);}
+  function eval1 ($env) {
+    return RT :: resolve ($this, $env);}}
 
-class ImutableMap {
-  private $keys = array();
-  private $values = array();
-  function __construct ($keys=null, $values=null) {
-    if ($keys != null and $values != null) {
-      $this->keys=$keys;
-      $this->values=$values;}}
-  function assoc ($key, $value) {
-      $k = $this->keys;
-      $v = $this->values;
-      array_push($k, $key);
-      array_push($v, $value);
-      return new ImutableMap($k, $v);}
+
+class Map implements ArrayAccess {
+  private $keys = null;
+  private $values = null;
+  function __construct ($keys, $values) {
+	$this->keys = $keys;
+	$this->values = $values;}
+  static function create () {
+	return new Map(null, null);}
+  function offsetExists ($k) {
+	if (array_search ($k, $this->keys) === false)
+	  return false;
+	return true;}
+  function offsetGet ($x) {
+	$y = array_search($x, $this->keys);
+	if ($y === false)
+	  return null;
+	else
+	  return $this->values[$y];}
+  function offsetSet ($k, $v) {}
+  function offsetUnset ($k) {}
   function __toString () {
-    $buf="";
-    for($i=0;$i<sizeof($this->keys);$i++) {
-      $buf.=" ".$this->keys[$i]." ".$this->values[$i].",";}
-    $buf=substr($buf,0,strlen($buf)-1);
-    return "{".trim($buf)."}";}
-  function get ($key) {
-    $x = array_search($key, $this->keys);
-    if ($x === false)
-      return null;
-    else
-      return $this->values[$x];}}
+	$buf="";
+	if($this->keys!=null)
+	  foreach($this->keys as $key => $kval)
+		$buf.=" ".$kval." ".$this->values[$key].",";
+	$buf=substr($buf,0,strlen($buf)-1);
+	return "{".trim($buf)."}";}
+  function assoc ($k, $v) {
+	$keys = $this->keys;
+	$values = $this->values;
+	if($keys == null) {
+	  $keys = array();
+	  $values = array();}
+	array_push($keys,$k);
+	array_push($values,$v);
+	return new Map($keys,$values);}}
+
+class Primitive {
+  private $name = null;
+  public $macro = false;
+  function __toString () {
+	return "&lt;PRIMITIVE".$this->name."&gt;";}
+  function __construct ($args, $body) {
+	$this->name = create_function($args, $body);}
+  function eval1 () {
+    return $this;}
+  function call($args) {
+	return call_user_func_array($this->name,$args->toArray());}}
+
+interface Sequence {
+  function &first ();
+  function Pempty();
+  function &rest ();}
+
+class SequenceIterator implements Iterator {
+  private $it = null;
+  function __construct(&$a) {
+	$this->it = new ArrayIterator($a);}
+  function current () {
+	return $this->it->current();}
+  function next () {
+	return $this->it->next();}
+  function key () {} 
+  function valid () {return $this->it->valid();} 
+  function rewind () {} 
+}
+
+class ArrayList implements Sequence, IteratorAggregate, ArrayAccess {
+  protected $array = null;
+  public $list = true;
+  function __construct () {
+	$this->array = func_get_args();}
+  function getIterator() {
+	return new SequenceIterator($this->array);}
+  function fromArray (& $arr) {
+	$this->array = &$arr;
+	return $this;}
+  function toArray () {
+	$x = $this->array;
+	return $x;}
+  function cons ($x) {
+	$y = new ArrayList();
+	$a = $this->array;
+	array_unshift($a,$x);
+	$y->fromArray($a);
+	return $y;}
+  function &first () {
+	return $this->array[0];}
+  function Pempty () {
+	if(sizeof($this->array) == 0)
+	  return true;
+	else
+	  return false;}
+  function &rest () {
+	$x=$this->array;
+	array_shift($x);
+	$y=new ArrayList();
+	$y->fromArray($x);
+	return $y;}
+  function __toString () {
+	$buf="";
+	foreach($this->array as $a)
+	  $buf.=" ".$a;
+	return "(".trim($buf).")";}
+  function reverse () {
+    $n = new ArrayList ();
+    foreach ($this as $that)
+      $n = $n -> cons ($that);
+    return $n;}
+  function offsetExists ($x) {
+	return array_key_exists($x,$this->array);}
+  function offsetGet ($x) {
+	return $this->array[$x];}
+  function offsetSet ($x, $v) {}
+  function offsetUnset ($x) {}
+  static function n () {
+	return new ArrayList();}
+  function eval1 ($env) {
+    if (RT :: resolve ($this -> first ()) -> macro)
+      return $this;
+    $n = new ArrayList ();
+    foreach ($this as $thing)
+      $n = $n -> cons (RT::eval1 ($thing, $env));
+    return $n -> reverse ();}}
+
+class ArrayArray {
+  function __toString () {
+	$buf="";
+	foreach($this->array as $a)
+	  $buf.=" ".$a;
+	return "[".trim($buf)."]";}}
+
 
 class RT {
-
   const special_chars = "\"(){}[]";
-  public static $root = null;
-  public static $bindings = null;
+  static $root = null;
+  static $lex = null;
+  static function resolve ($symbol, $env=null) {
+    if ($env != null)
+      foreach ($env as $bindings)
+        if ($bindings -> offsetExists ($symbol))
+          return $bindings [$symbol];
+    foreach (self :: $lex as $bindings)
+      if ($bindings -> offsetExists ($symbol))
+        return $bindings [$symbol];
+    if (self :: $root -> offsetExists ($symbol))
+      return self :: $root [$symbol];
+    else {
+      $x=null;
+      return $x->Symbol_Lookup_Failed ();}}
+  static function init () {
+    self :: $lex = new ArrayList ();
+    self :: $root = Map :: create ();}
+  static function eval1 ($form, $env) {
+    if (is_object($form)) {
+      return $form->eval1($env);}
+    else {
+      return $form;}}
+  static function apply1 ($form) {
+    if ($form->list)
+      return $form -> first () -> call ($form -> rest());
+    else
+      return $form;}
+  static function run ($form) {
+    return self :: apply1 (self :: eval1 ($form,null));}
+  static function run1 ($form, $env) {
+    return self :: apply1 (self :: eval1 ($form,$env));}
+  static function def ($symbol, $value) {
+    self::$root = self::$root->assoc($symbol,$value);}}
 
-  public static function tokenizer ($string) {
-    $tokens=new LList();
-    while(strlen($string) > 0){
-      $tokens=$tokens->cons($string[0]);
-      $string=substr($string,1,strlen($string));}
-    return $tokens->reverse();}
+class Fn {
+  private $code = null;
+  private $env = null;
+  private $names = null;
+  public $macro = false;
+  function __construct ($code,$env,$names) {
+    $this->code = $code;
+    $this->env = ($env == null) ? new ArrayList () : $env;
+    $this->names = $names;}
+  function call () {
+    $a = func_get_args ();
+    $a=$a[0];
+    $a=$a->toArray();
+    if (sizeof($a) != sizeof($this -> names -> toArray()))
+      $a -> Incorrect_function_arity ();
+    $m = Map :: create ();
+    foreach($a as $key => $value)
+      $m = $m -> assoc ($this -> names [$key], $value);
+    $stack = $this -> env -> cons ($m);
+    $stack - $stack -> cons (Map :: create () -> assoc ("THIS", $stack))
+    return RT :: run1 ($this -> code, $stack);}
+  function __toString () {
+    return "&lt;FUNCTION ".$this->names." ".$this->code." &gt;";}}
 
-  public static function coaless ($list) {
-    $result = new LList ();
+class Func extends Fn {
+  function __construct ($code,$names,$env=null) {
+    $this->code=$code;$this->names=$names;$this->env=new ArrayList();
+  }}
+
+
+print "<pre>";
+RT :: init ();
+RT :: def (new Symbol ("+"), new Primitive('$a,$b','return $a+$b;'));
+RT :: def (new Symbol ("first"), new Primitive('$a','return $a->first();'));
+RT :: def (new Symbol ("rest"), new Primitive('$a','return $a->rest();'));
+RT :: def (new Symbol ("cons"), new Primitive('$a,$b','$b = ($b == null) ? new ArrayList () : $b; return $b->cons($a);'));
+RT :: def (new Symbol ("list"), new Primitive('','$a=func_get_args(); $b = new ArrayList; $b -> fromArray ($a); return $b;'));
+RT :: def (new Symbol ("def"), new Primitive('$a,$b','return RT :: def ($a,RT :: run ($b));'));
+$x = RT :: resolve (new Symbol ("def"));
+$x->macro = true;
+$x = new ArrayList(new Symbol ("def"), new Symbol ("tokenize"),
+                   new Primitive ('$string', 'return tokenize($string);'));
+RT :: run ($x);
+
+function tokenize ($string) {
+  $a=array();
+  for($i=0;$i<strlen($string);$i++)
+    array_push($a,$string[$i]);
+  $b=new ArrayList();
+  $b->fromArray($a);
+  return $b;}
+
+function coaless ($list) {
+    $result = array();
     while (!$list->Pempty()) {
       if (is_numeric($list->first())) {
         $buf="";
         while (!$list->Pempty() && is_numeric($list->first())) {
           $buf.=$list->first();
           $list=$list->rest();}
-        $result=$result->cons(intval($buf));}
-      elseif ($list->first() != " " && (strstr(self::special_chars, $list->first()) === false)) {
+        array_push($result, intval($buf));}
+      elseif ($list->first() != " " && (strstr(RT::special_chars, $list->first()) === false)) {
         $buf="";
-        while (!$list->Pempty() && $list->first() != " " && (strstr(self::special_chars, $list->first()) === false)) {
+        while (!$list->Pempty() && $list->first() != " " && (strstr(RT::special_chars, $list->first()) === false)) {
           $buf.=$list->first();
           $list=$list->rest();}
-        $result=$result->cons(new Symbol($buf));}
+          array_push($result,new Symbol ($buf));}
+      elseif ($list->first() == "\"") {
+		$buf="";
+		$list=$list->rest();
+		for(;!$list->Pempty() and $list->first() != "\"";$list=$list->rest())
+		  $buf.=$list->first();
+        array_push($result, $buf);
+	  }
       elseif ($list->first() == "(") {
-        $buf=new LList ();
+        $buf=new ArrayList ();
         $list=$list->rest();
         for($i=1;$i>0;$list=$list->rest()) {
           $buf=$buf->cons($list->first());
@@ -168,107 +270,52 @@ class RT {
           elseif ($list->first() == ")")
             $i--;}
         $buf=$buf->rest();
-        $result=$result->cons(self::coaless($buf->reverse()));}
-      elseif ($list->first() == "[") {
-        $buf=new LList ();
-        $list=$list->rest();
-        for($i=1;$i>0;$list=$list->rest()) {
-          $buf=$buf->cons($list->first());
-          if ($list->first() == "[")
-            $i++;
-          elseif ($list->first() == "]")
-            $i--;}
-        $a=array();
-        for($buf=self::coaless($buf->rest());!$buf->Pempty();$buf=$buf->rest()) {
-          array_push($a,$buf->first());}
-        $result=$result->cons(new AArray ($a));}
+        array_push($result, coaless($buf->reverse()));}
       else {
         if ($list->first() != " ")
-          $result=$result->cons($list->first());
+          array_push($result, $list->first());
         $list=$list->rest();}}
-    return $result->reverse();}
-  public static function read($string) {
-    return RT::coaless(RT::tokenizer($string));}
-  public static function read_one($string) {
-    $x=self::read($string);
-    return $x->first();}
-  public static function p_eval($form) {
-    if ($form->type() == "list") {
-      $s = self::resolve($form->first());
-      return $s->call_array($form->rest()->toArray());}
-    elseif ($form->type() == "symbol")
-      return self::resolve($form);
-    else
-      return $form;}
-  public static function def ($symbol, $value) {
-    if (self::$root == null)
-      self::$root = new ImutableMap();
-    self::$root = self::$root->assoc($symbol,$value);
-    return null;}
-  public static function resolve ($symbol,$env=null) {
-    if ($env == null) {
-      return self::$root->get($symbol);}
-    else
-      for($n=$env;!$n->Pempty();$n=$n->rest()) {
-        $x=$n->first()->get($symbol);
-        if($x != null)
-          return $x;}}
-  public static function new_frame() {
-    if (self::$bindings == null)
-      self::$bindings = new LList();}
-  public static function pop_frame() {
-    self::$bindings=self::$bindings->rest();}
-  public static function push_bindings ($symbols,$values) {
-    self::new_frame();
-    $c=new ImutableMap();
-    while (!$symbols->Pempty()) {
-      $c=$c->assoc($symbols->first(),$values->first());
-      $symbols=$symbols->rest();
-      $values=$values->rest();}
-    self::$bindings=self::$bindings->cons($c);}}
+    $b=new ArrayList ();
+    $b->fromArray($result);
+    return $b;}
 
-class Primitive {
-  private $func = null;
-  function __construct ($args, $body) {
-    $a="";
-    foreach($args->get() as $val)
-      $a.=$val->get().",";
-    $a=substr($a,0,strlen($a)-1);
-    $this->func=create_function($a, $body);
-    return null;}
-  function call_array($a) {
-    return call_user_func_array($this->func, $a);}
-  function call () {
-    $x=func_get_args();
-    return $this->call_array($x);}
-  function __toString () {return "&lt;PRIMITIVE&gt;";}}
+function read ($string) {
+  return coaless(tokenize($string));}
 
-print "<pre>";
+$y = new Primitive('','$a=func_get_args();
+                       $arg_list = $a[0];
+                       array_shift($a);
+                       $b=new ArrayList ();
+                       $b->fromArray($a);
+                       $b=$b->cons(new Symbol ("do"));
+                       return new Fn($b,null,$arg_list);');
+$y->macro=true;
+RT :: def (new Symbol ("fn"), $y);
+RT :: def (new Symbol ("do"), new Primitive('','$a=func_get_args();
+                                                $b=null;
+                                                foreach($a as $c)
+                                                  $b=RT::apply1($c);
+                                                return $b;'));
 
-$y=RT::read_one("[x y]");
-$x=new Primitive($y, 'return $x+$y;');
-$z=new Symbol("+");
-RT::def($z, $x);
-print RT::$root;
-print "\n";
-print RT::resolve($z)->call(1 ,2);
-print "\n";
-$s = LList::llist(new Symbol("a"), new Symbol("b"));
-$v = LList::llist(1, 2);
-RT::push_bindings($s,$v);
-print RT::$bindings;
-print "\n";
-print RT::resolve(new Symbol("a"), RT::$bindings);
-print "\n";
-
-RT::def(new Symbol("resolve"), new Primitive(RT::read_one("[a]"),'return RT::resolve($a);'));
-RT::def(new Symbol("def"), new Primitive(RT::read_one("[a b]"),'return RT::def($b, $a);'));
-$x = RT::read_one("(resolve resolve)");
-RT::p_eval(RT::read_one("(def x 1)"));
-print "\n";
-print RT::p_eval($x);
-print "\n";
-print RT::p_eval(new Symbol("x"));
-print "\n";
-print RT::$root;
+/*  return call_user_func_array(
+      array(new ReflectionClass($className), 'newInstance'),
+          $functionParameters
+            );*/
+$x=new Primitive('', '$a=func_get_args();
+                      $class=$a[0];
+                      array_shift($a);
+                      return call_user_func_array(array(new ReflectionClass($class), "newInstance"),$a);
+                      ');
+$x->macro=true;
+   
+$x=read("(fn (x y) (+ x y))");
+$t=RT::run($x->first());
+$x=read("(def add (fn (x y) (+ x y)))");
+$t=RT::run($x->first());
+$x=read("(add 1 2)")->cons(new Symbol("do"));
+print RT :: run ($x)."\n";
+$x=read("(def f (fn (x) (fn () x)))");
+$x=$x->first();
+$t=RT::run($x);
+print RT :: run (read ("((f 1))") -> first ());
 ?>
