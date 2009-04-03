@@ -20,7 +20,7 @@
       ([dir dir-fn file-fn r]
        (let [files (.listFiles #^File dir)
              [++1 +-1] [#(dosync (alter r inc)) #(dosync (alter r dec))]]
-         (doseq [entry files]
+         (doseq [#^File entry files]
                 (++1)
                 (if (.isDirectory entry)
                   (execute #(do
@@ -29,7 +29,7 @@
                               (+-1)))
                   (do
                     (file-fn entry)
-                     (+-1)))))
+                    (+-1)))))
        r))
 
 
