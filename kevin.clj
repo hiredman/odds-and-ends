@@ -1,4 +1,4 @@
-(in-ns 'kevin)
+;(in-ns 'kevin)
 
 (clojure.core/refer 'clojure.core)
 
@@ -1132,3 +1132,11 @@
 
 (matcher [#{:number :punc} [[{:type :character :count 3}] [{:type :punc :count 3}]]]
          "1   ")
+
+
+(defn meta-wrapper [x]
+  (let [m (atom {})]
+    (proxy [clojure.lang.IDeref] [clojure.lang.IMeta clojure.lang.IObj] []
+      (meta [] @m)
+      (withMeta [map] (swap! m (constantly map)))
+      (deref [] x))))
