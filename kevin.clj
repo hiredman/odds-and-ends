@@ -36,8 +36,6 @@
 					(let [h (make-line b)]
 						(if (nil? h) h (str v h)))))))
 
-
-
 (defn file-lazy-strings
 			"takes a seq of characters, returns lazy seq of strings, newline as seperater"
 			[x]
@@ -244,56 +242,6 @@
               [:scan x (/ x y)]))
         [64 4 2 4])
 
-(defn show
-  ([x] (show x nil))
-  ([x i]
-      (let [c (if (class? x) x (class x))
-            items (sort
-                    (for [m (concat (.getFields c)
-                                    (.getMethods c)
-                                    (.getConstructors c))]
-                      (let [static? (bit-and Modifier/STATIC
-                                             (.getModifiers m))
-                            method? (instance? Method m)
-                            ctor?   (instance? Constructor m)
-                            text (if ctor?
-                                   (str "(" (apply str (interpose ", "
-(.getParameterTypes m))) ")")
-                                   (str
-                                     (if (pos? static?) "static ")
-                                     (.getName m) " : "
-                                     (if method?
-                                       (str (.getReturnType m) " ("
-                                            (count (.getParameterTypes m)) ")")
-                                       (str (.getType m)))))]
-                        [(- static?) method? text (str m) m])))]
-        (if i
-          (last (nth items i))
-          (do (println "=== " c " ===")
-            (doseq [[e i] (map list items (iterate inc 0))]
-              (printf "[%2d] %s\n" i (nth e 2))))))))
-
-(import '(java.io BufferedReader
-                  InputStreamReader))
-
-(defn system [cmd-string]
-  (let [process (.. Runtime getRuntime (exec cmd-string))
-        reader (BufferedReader.
-                (InputStreamReader.
-                 (.getInputStream process)))]
-    (apply str (rest (interpose "\n" (line-seq reader))))))
-
-
-
-
-(def a (system "svn -v --xml --limit 5 log  https://clojure.svn.sourceforge.net/svnroot/clojure")
-
-(def b "svn -v --xml --limit 5 log  https://clojure.svn.sourceforge.net/svnroot/clojure")
-
-(def a
-(clojure.xml/parse
-  (.getInputStream (.. Runtime getRuntime (exec b))))
-)
 (defn partition-with [pred col]
       (if col
         (let [x (split-with pred col)]
@@ -301,61 +249,12 @@
         nil))
 
 
-(defn sandbox [func]
-      (let [perms (java.security.Permissions.)
-            domain (java.security.ProtectionDomain.
-                     (java.security.CodeSource. nil
-                                                (cast java.security.cert.Certificate nil))
-                     perms)
-            context (java.security.AccessControlContext. (into-array [domain]))
-            pA (proxy [java.security.PrivilegedAction] [] (run [] (func)))]
-        (System/setSecurityManager (SecurityManager.))
-        (java.security.AccessController/doPrivileged
-          pA context)))
-
-(sandbox 
-#(doto (-> "foo.bar" java.io.File. java.io.FileWriter.) (.write "foo") .close)
-)
 (defn parse-xml-url [url]
       (let [url (java.net.URL. url)
             stream (.openStream url)
             out (clojure.xml/parse stream)
             _ (.close stream)]
         out))
-
-(import '(java.io File FileReader)
-        '(org.supercsv.io CsvMapReader CsvBeanReader CsvListReader)
-        '(org.supercsv.prefs CsvPreference))
-
-(with-open [file (-> "2008-12-19.csv" File. FileReader.)
-            csv (CsvListReader. file (CsvPreference/EXCEL_PREFERENCE))]
-           (doall (map #(into [] %) (take-while #(> (count %) 0) (map #(%) (cycle [#(.read csv)]))))))
-
-(def family-name second)
-
-(defn street [x]
-      (first (drop 4 x)))
-
-(defn city [x]
-      (first (drop 5 x)))
-
-(defn state [x]
-      (first (drop 6 x)))
-
-(defn zip [x]
-      (first (drop 7 x)))
-
-(defn aname [x]
-      (first (drop 17 x)))
-
-(defn dob [x]
-      (first (.split (first (drop 18 x)) " ")))
-
-(defn email [x]
-      (first (drop 21 x)))
-
-(defn im [x]
-      (first (drop 22 x)))
 
 
 (defmacro amb [[v s] & forms]
@@ -381,17 +280,7 @@
 
 
 
-(macroexpand-1 `(amb [v (range 1 10)] (if (not= 8 v) (throw (Exception. "foo")) v)))
-
-
-(amb [v [(do (println :0) 0) 1 (do (println :2) 2) 3 4 5 6 7 8]] (if (not= 8 v) (throw (Exception. "not an eight")) v))
-
-
-
-(sort (fn [a b] (if (and (= a :d) (not= b :a)) 1 (if (= b :d) -1 0)))
-      [:a :b :c :d])
-
-  (defn word-seq [s]
+(defn word-seq [s]
       (re-seq #"[^ ,.]+" s))
 
 (word-seq "Hello, my name is Kevin.")
@@ -674,176 +563,6 @@
 
 
 
-(defn transform [se pred fn]
-      (loop [se (zip/seq-zip se)]
-            (if (zip/end? se)
-              (zip/root se)
-              (if (pred se)
-                (recur (fn se))
-                (recur (zip/next se))))))
-
-(transform '((a · b) · (c · d))
-           #(= "·" (let [c (zip/node %)] (and (symbol? c) (name c))))
-           #(-> % zip/remove (zip/insert-left 'clojure.core/comp)))
-
-(defmacro pl [& forms]
-  (let [x (transform forms
-                     #(= "·" (let [c (zip/node %)] (and (symbol? c) (name c))))
-                     #(-> % zip/remove (zip/insert-left 'clojure.core/comp)))]
-    `(do ~@x)))
-
-(macroexpand '(pl ((c · d) · (a · b))))
-
-(⌽ java.util.concurrent.Callable (fn [a] a))
-
-(⌽ java.util.concurrent.Executors
-   (fn [a] a))
-
-
-(defmacro ⌽ [class fn]
-  (conj
-    (map #(list (second %)
-                ['& 'x]
-                (list 'apply 'fn (first %) 'x))
-         (map #(vector (keyword %) (symbol %))
-              (map #(.getName %) (.getMethods (class class))))) [] [`~class] 'proxy))
-
-(count (.getTypeParameters (second (.getMethods (class "")))))
-
-(.codePointAt "⌽foo" 0)
-9021
-
-(transform '(⌽foo bar baz beep)
-           #(= 9021 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
-           #(-> % (zip/replace (symbol (subs (name (zip/node %)) 1)))
-                (zip/insert-left 'partial)))
-
-(defn random-person [bot]
-      (randth (filter #(not (.equals % (:nick bot)))
-                      (apply concat (map last (everyone-I-see bot))))))
-
-;; (comp randth
-;;       (partial filter #(not (.equals % (:nick bot))))
-;;       (partial apply concat)
-;;       (partial map last)
-;;       everyone-I-see)
-
-(-> '(comp)
-    zip/seq-zip
-    zip/down
-    (zip/insert-right (-> '(map last (everyone-I-see bot))
-                          zip/seq-zip
-                          zip/root))
-    zip/root)
-
-(cons 'partial (take-while #(not (seq? %)) '(map last (everyone-I-see bot))))
-
-(f (comp not seq?) '(map last (everyone-I-see bot)))
-
-
-(loop [exp '(a b (h y (g y))) op ['comp]]
-      (if (and (not (empty? exp)) (seq? (last exp)))
-        (recur (last exp) (conj op (let [x (butlast exp)]
-                                     (if (> (count x) 1)
-                                       (cons 'partial x)
-                                       (first x)))))
-        (seq (concat op exp))))
-
-
-(-> (seq "(comp randth (first a))")
-    zip/seq-zip
-    zip/next
-    (zip/insert-left \newline)
-    zip/next
-    zip/next
-    zip/next
-    zip/next
-    zip/next
-    zip/next
-    zip/next
-    zip/next
-    zip/next
-    zip/next
-    zip/next
-    zip/next
-    zip/next
-    zip/node)
-
-(with-local-vars [depth 0]
-(println
-  (apply str (transform '(comp randth (first a))
-                      #(do % true)
-                      #(let [n (zip/node %)]
-                         (cond
-                           (and (= n \() )))))))
-
-(defn paren-zip [exp])
-
-(defn pipeline [a]
-(loop [exp 'a op ['comp]]
-      (if (and (not (empty? exp)) (seq? (last exp)))
-        (recur (last exp) (conj op (let [x (butlast exp)]
-                                     (if (> (count x) 1)
-                                       (cons 'partial x)
-                                       (first x)))))
-        (seq (concat op exp)))))
-
-(def tp (doto (javax.swing.JTextPane.)
-              (.setPreferredSize (java.awt.Dimension. 800 600))))
-
-(def w (javax.swing.JFrame. "text"))
-
-(def p (doto (javax.swing.JPanel.)
-             (.setPreferredSize (java.awt.Dimension. 800 600))))
-
-(.add p tp)
-(.add w p)
-
-(.pack w)
-(.setVisible w true)
-
-(defmacro pl [& forms]
-  (let [x (transform forms
-                     #(= "·" (let [c (zip/node %)] (and (symbol? c) (name c))))
-                     #(-> % zip/remove (zip/insert-left 'clojure.core/comp)))
-        x (transform x
-                     #(= 9021 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
-                     #(-> % (zip/replace (symbol (subs (name (zip/node %)) 1)))
-                            (zip/insert-left 'partial)))
-        x (transform x
-                     #(and (= 63 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
-                           (> 58 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 1)) 47))
-                     #(let [n (zip/node %)
-                           num (Integer/parseInt (subs (name n) 1))]
-                        (zip/replace % (list 'rand-int num))))]
-    `(do ~@x)))
-
-(pl 
-  ((⌽map first) [[:a :b]]))
-
-((comp first list) :a :b)
-
-((fn [x]
-    (apply concat (reverse (map reverse (partition (int (/ (count x) 2)) x)))))
- [:a :b :c :d :e :f :g])
-
-(partition 1 [:a :b :c])
-
-(int 1)
-
-(concat )
-
-(macroexpand
-'(pl
-  ((a · b) · (c · ?5))))
-
-(transform '(+ 1 ?4)
-           #(and (= 63 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
-                 (> 58 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 1)) 47))
-           #(let [n (zip/node %)
-                  num (Integer/parseInt (subs (name n) 1))]
-              (zip/replace % (list 'rand-int num))))
-
 (defmulti  max- count :default :else)
 (defmethod max- 0 [_] (throw (Exception. "max- on empty list")))
 (defmethod max- 1 [[x]] x)
@@ -893,78 +612,6 @@
             method (.getDeclaredMethod sysclass "addURL" parameters)
             _ (.setAccessible method true)]
         (.invoke method sysloader (into-array Object [(.toURL (java.io.File. path))]))))
-
-(defstruct monad :wrap :pass :value)
-
-(defn new-identity-monad [value]
-      (fn this [& args]
-          (condp = (first args)
-                 :value
-                    value
-                 :pass
-                    (new-identity-monad ((second args) (this :value))))))
-
-(def m (new-identity-monad 1))
-
-((:pass m) m)
-
-(return m inc)
-
-(defn mvector [value]
-      (fn this [& args]
-          (condp = (first args)
-                 :value
-                    (if (vector? value)
-                      value
-                      [value])
-                 :join
-                    (mvector (conj (this :value) (second args)))
-                 :empty
-                    (mvector [])
-                 :+
-                   (mvector (vec (concat (this :value) ((second args) :value)))) 
-                 :pass
-                    (mvector (vec (map (second args) (this :value)))))))
-
-(((((mvector 1) :pass first) :join (mvector 2)) :join (mvector 3)) :value)
-
-((((mvector [1 2 4]) :pass inc) :join 10) :value)
-
-(((mvector [1 2 3]) :+ (mvector [4 5 6])) :value)
-
-(defn mvector [val]
-      (let [value #(if (vector? val)
-                     val
-                     [val])
-            join #(mvector (conj (value) %))
-            empty #(mvector [])
-            + #(mvector (vec (concat (value) (:value %))))
-            pass #(mvector (vec (map % (value))))]
-        {:value (value) :join join :empty empty :+ + :pass pass}))
-
-((((((((mvector 1) :join) 2) :+) (mvector [10 11 12])) :pass) inc) :value)
-
-(defn mmaybe [value])
-
-(defn throw-unsupported [& x]
-      (throw (UnsupportedOperationException.)))
-
-(def monad {:bind throw-unsupported :unit throw-unsupported})
-
-(defn failable [value success]
-      (let [unit #(failable % true)
-            bind #(if success (% value))]
-        (assoc monad
-               :bind bind
-               :unit unit
-               :value value
-               :success success)))
-
-(defn success [x]
-      (failable x true))
-
-(defn failure [x]
-      (failable x false))
 
 (ByteBuffer/allocate 10)
 
