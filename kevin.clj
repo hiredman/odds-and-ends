@@ -694,6 +694,7 @@
 
 (macroexpand '(pl ((c · d) · (a · b))))
 
+<<<<<<< TREE
 (⌽ java.util.concurrent.Callable (fn [a] a))
 
 (⌽ java.util.concurrent.Executors
@@ -893,6 +894,7 @@
             method (.getDeclaredMethod sysclass "addURL" parameters)
             _ (.setAccessible method true)]
         (.invoke method sysloader (into-array Object [(.toURL (java.io.File. path))]))))
+<<<<<<< TREE
 
 (defstruct monad :wrap :pass :value)
 
@@ -1023,6 +1025,9 @@
         (doto window .pack (.setVisible true))
         (.start (reader-thread pi-out text-area))
         (.start (reader-thread pi-error text-area))))
+=======
+>>>>>>> MERGE-SOURCE
+>>>>>>> MERGE-SOURCE
 
 (defmacro f [& x]
       `(try
@@ -1071,64 +1076,63 @@
 (defn bind [M f]
       (fn [me]))
 
-(defn typer [character]
-      (let [c (int character)]
-        (cond
-          (> c 64)
-            :character
-          (and (< c 58) (> c 47))
-            :number
-          (#{32 10} c)
-            :whitespace
-          :else
-            :punc)))
 
-(defn tokener [string]
-      (loop [[i & n] string buf [] out [] type nil]
-            (if i 
-              (do
-                (condp = type
-                     (typer i)
-                      (recur n (conj buf i) out type)
-                     nil
-                      (recur (cons i n) buf out (typer i))
-                     (recur (cons i n) [] (conj out [type (apply str buf)]) (typer i))))
-              (conj out [type (apply str buf)]))))
+(defn cambridge [word]
+      (if (and (re-find #"\w+" word) (> (count word) 1))
+        (let [first-letter (first word) last-letter (last word)
+              middle (java.util.LinkedList. (or (butlast (rest word)) ()))]
+          (java.util.Collections/shuffle middle)
+          (str first-letter (apply str middle) last-letter))
+        word))
 
-(def make-pattern (comp seq (partial map first) tokener))
 
-(defmulti === (fn [x y]
-                  (cond
-                    (map? x)
-                      :map
-                    (and (not (keyword? x)) (ifn? x))
-                      :callable)) :default nil)
-(defmethod === :callable [x y] (x y))
-(defmethod === nil [x y] (= x y))
-(defmethod === :map [x y]
-  (cond
-    (and (< 0 (:count x)) (= y (:type x)))
-      true
-    (and (> 0 (:count x)) (not= y (:type x)))
-      true
-    :else
-      false))
+(defn cambridge-sentence [sentence]
+      (.trim
+        (.toString
+          (reduce #(.append % %2)
+                  (StringBuilder.)
+                  (map cambridge (re-seq #"\w+|\W+" sentence))))))
 
-(defn matcher
-      ([pattern string]
-       (matcher pattern (make-pattern string) true))
-      ([[pf & pr] [inf & inr] match?]
-       (cond
-         (not (and pf match? inf))
-          (when match? (if inf (cons inf inr) match?))
-         (vector? pf)
-          (some #(matcher % (cons inf inr) match?) pf)
-         (and (map? pf) (== pf inf))
-          (recur (cons (update-in pf [:count] dec) pr) inr match?)
-         (=== pf inf)
-          (recur pr inr match?)
-         :else
-          false)))
+(defmacro fast-proxy [clas fn]
+  (let [class (Class/forName (name `~clas))
+        fun (gensym 'f)]
+    `(let [~fun ~fn]
+       ~(concat `(proxy [~clas] [])
+            (map #(list (symbol (.getName %)) ['& 'args]
+                        `(apply ~fun ~(keyword (.getName %)) ~'args))
+                 (filter #(not= (.getDeclaringClass %) Object) (.getMethods class)))))))
 
-(matcher [#{:number :punc} [[{:type :character :count 3}] [{:type :punc :count 3}]]]
-         "1   ")
+
+(defn skip-nth [n s]
+      (if (> n 0)
+        (lazy-seq (cons (first s) (skip-nth (dec n) (rest s))))
+        (rest s)))
+
+
+(defmacro with-open-proc [cmd bindings & stuff]
+  `(let [proc# (.exec (Runtime/getRuntime) ~cmd)
+         stder# (java.io.BufferedReader. (java.io.InputStreamReader. (.getErrorStream proc#)))
+         stdout# (java.io.BufferedReader. (java.io.InputStreamReader. (.getInputStream proc#)))
+         stdin# (java.io.OutputStreamWriter. (.getOutputStream proc#))]
+        (with-open [~(first bindings) stdout#
+                    ~(second bindings) stdin#
+                    ~(last bindings) stder#]
+          ~@stuff)))
+
+(import '(java.io BufferedReader IOException InputStream InputStreamReader OutputStreamWriter)
+        '(java.net URL URLConnection URLEncoder)
+        '(sun.misc BASE64Encoder))
+
+(def update-url "http://twitter.com/statuses/update.xml")
+
+(defn twitter [username password text]
+      (let [creds (.trim (.encode (BASE64Encoder.) (.getBytes (str username ":" password))))
+            con (doto (.openConnection (URL. update-url))
+                  (.setDoInput true) (.setDoOutput true) (.setUseCaches false)
+                  (.setRequestProperty "Authorization" (str "Basic " creds))
+                  (.setRequestProperty "User-Agent" "clojurebot 10/10"))
+            status (str "status=" (URLEncoder/encode text "UTF-8"))]
+        (with-open [wrt (OutputStreamWriter. (.getOutputStream con))]
+          (.write wrt status))
+        (with-open [rdr (-> (.getInputStream con) InputStreamReader. BufferedReader.)]
+          (apply str (line-seq rdr)))))
