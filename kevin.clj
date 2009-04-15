@@ -1,4 +1,4 @@
-(in-ns 'kevin)
+;(in-ns 'kevin)
 
 (clojure.core/refer 'clojure.core)
 
@@ -35,8 +35,6 @@
 					""
 					(let [h (make-line b)]
 						(if (nil? h) h (str v h)))))))
-
-
 
 (defn file-lazy-strings
 			"takes a seq of characters, returns lazy seq of strings, newline as seperater"
@@ -244,56 +242,6 @@
               [:scan x (/ x y)]))
         [64 4 2 4])
 
-(defn show
-  ([x] (show x nil))
-  ([x i]
-      (let [c (if (class? x) x (class x))
-            items (sort
-                    (for [m (concat (.getFields c)
-                                    (.getMethods c)
-                                    (.getConstructors c))]
-                      (let [static? (bit-and Modifier/STATIC
-                                             (.getModifiers m))
-                            method? (instance? Method m)
-                            ctor?   (instance? Constructor m)
-                            text (if ctor?
-                                   (str "(" (apply str (interpose ", "
-(.getParameterTypes m))) ")")
-                                   (str
-                                     (if (pos? static?) "static ")
-                                     (.getName m) " : "
-                                     (if method?
-                                       (str (.getReturnType m) " ("
-                                            (count (.getParameterTypes m)) ")")
-                                       (str (.getType m)))))]
-                        [(- static?) method? text (str m) m])))]
-        (if i
-          (last (nth items i))
-          (do (println "=== " c " ===")
-            (doseq [[e i] (map list items (iterate inc 0))]
-              (printf "[%2d] %s\n" i (nth e 2))))))))
-
-(import '(java.io BufferedReader
-                  InputStreamReader))
-
-(defn system [cmd-string]
-  (let [process (.. Runtime getRuntime (exec cmd-string))
-        reader (BufferedReader.
-                (InputStreamReader.
-                 (.getInputStream process)))]
-    (apply str (rest (interpose "\n" (line-seq reader))))))
-
-
-
-
-(def a (system "svn -v --xml --limit 5 log  https://clojure.svn.sourceforge.net/svnroot/clojure")
-
-(def b "svn -v --xml --limit 5 log  https://clojure.svn.sourceforge.net/svnroot/clojure")
-
-(def a
-(clojure.xml/parse
-  (.getInputStream (.. Runtime getRuntime (exec b))))
-)
 (defn partition-with [pred col]
       (if col
         (let [x (split-with pred col)]
@@ -301,61 +249,12 @@
         nil))
 
 
-(defn sandbox [func]
-      (let [perms (java.security.Permissions.)
-            domain (java.security.ProtectionDomain.
-                     (java.security.CodeSource. nil
-                                                (cast java.security.cert.Certificate nil))
-                     perms)
-            context (java.security.AccessControlContext. (into-array [domain]))
-            pA (proxy [java.security.PrivilegedAction] [] (run [] (func)))]
-        (System/setSecurityManager (SecurityManager.))
-        (java.security.AccessController/doPrivileged
-          pA context)))
-
-(sandbox 
-#(doto (-> "foo.bar" java.io.File. java.io.FileWriter.) (.write "foo") .close)
-)
 (defn parse-xml-url [url]
       (let [url (java.net.URL. url)
             stream (.openStream url)
             out (clojure.xml/parse stream)
             _ (.close stream)]
         out))
-
-(import '(java.io File FileReader)
-        '(org.supercsv.io CsvMapReader CsvBeanReader CsvListReader)
-        '(org.supercsv.prefs CsvPreference))
-
-(with-open [file (-> "2008-12-19.csv" File. FileReader.)
-            csv (CsvListReader. file (CsvPreference/EXCEL_PREFERENCE))]
-           (doall (map #(into [] %) (take-while #(> (count %) 0) (map #(%) (cycle [#(.read csv)]))))))
-
-(def family-name second)
-
-(defn street [x]
-      (first (drop 4 x)))
-
-(defn city [x]
-      (first (drop 5 x)))
-
-(defn state [x]
-      (first (drop 6 x)))
-
-(defn zip [x]
-      (first (drop 7 x)))
-
-(defn aname [x]
-      (first (drop 17 x)))
-
-(defn dob [x]
-      (first (.split (first (drop 18 x)) " ")))
-
-(defn email [x]
-      (first (drop 21 x)))
-
-(defn im [x]
-      (first (drop 22 x)))
 
 
 (defmacro amb [[v s] & forms]
@@ -381,17 +280,7 @@
 
 
 
-(macroexpand-1 `(amb [v (range 1 10)] (if (not= 8 v) (throw (Exception. "foo")) v)))
-
-
-(amb [v [(do (println :0) 0) 1 (do (println :2) 2) 3 4 5 6 7 8]] (if (not= 8 v) (throw (Exception. "not an eight")) v))
-
-
-
-(sort (fn [a b] (if (and (= a :d) (not= b :a)) 1 (if (= b :d) -1 0)))
-      [:a :b :c :d])
-
-  (defn word-seq [s]
+(defn word-seq [s]
       (re-seq #"[^ ,.]+" s))
 
 (word-seq "Hello, my name is Kevin.")
@@ -694,7 +583,6 @@
 
 (macroexpand '(pl ((c · d) · (a · b))))
 
-<<<<<<< TREE
 (⌽ java.util.concurrent.Callable (fn [a] a))
 
 (⌽ java.util.concurrent.Executors
@@ -894,79 +782,6 @@
             method (.getDeclaredMethod sysclass "addURL" parameters)
             _ (.setAccessible method true)]
         (.invoke method sysloader (into-array Object [(.toURL (java.io.File. path))]))))
-<<<<<<< TREE
-
-(defstruct monad :wrap :pass :value)
-
-(defn new-identity-monad [value]
-      (fn this [& args]
-          (condp = (first args)
-                 :value
-                    value
-                 :pass
-                    (new-identity-monad ((second args) (this :value))))))
-
-(def m (new-identity-monad 1))
-
-((:pass m) m)
-
-(return m inc)
-
-(defn mvector [value]
-      (fn this [& args]
-          (condp = (first args)
-                 :value
-                    (if (vector? value)
-                      value
-                      [value])
-                 :join
-                    (mvector (conj (this :value) (second args)))
-                 :empty
-                    (mvector [])
-                 :+
-                   (mvector (vec (concat (this :value) ((second args) :value)))) 
-                 :pass
-                    (mvector (vec (map (second args) (this :value)))))))
-
-(((((mvector 1) :pass first) :join (mvector 2)) :join (mvector 3)) :value)
-
-((((mvector [1 2 4]) :pass inc) :join 10) :value)
-
-(((mvector [1 2 3]) :+ (mvector [4 5 6])) :value)
-
-(defn mvector [val]
-      (let [value #(if (vector? val)
-                     val
-                     [val])
-            join #(mvector (conj (value) %))
-            empty #(mvector [])
-            + #(mvector (vec (concat (value) (:value %))))
-            pass #(mvector (vec (map % (value))))]
-        {:value (value) :join join :empty empty :+ + :pass pass}))
-
-((((((((mvector 1) :join) 2) :+) (mvector [10 11 12])) :pass) inc) :value)
-
-(defn mmaybe [value])
-
-(defn throw-unsupported [& x]
-      (throw (UnsupportedOperationException.)))
-
-(def monad {:bind throw-unsupported :unit throw-unsupported})
-
-(defn failable [value success]
-      (let [unit #(failable % true)
-            bind #(if success (% value))]
-        (assoc monad
-               :bind bind
-               :unit unit
-               :value value
-               :success success)))
-
-(defn success [x]
-      (failable x true))
-
-(defn failure [x]
-      (failable x false))
 
 (ByteBuffer/allocate 10)
 
@@ -1025,9 +840,6 @@
         (doto window .pack (.setVisible true))
         (.start (reader-thread pi-out text-area))
         (.start (reader-thread pi-error text-area))))
-=======
->>>>>>> MERGE-SOURCE
->>>>>>> MERGE-SOURCE
 
 (defmacro f [& x]
       `(try
@@ -1075,7 +887,6 @@
 
 (defn bind [M f]
       (fn [me]))
-
 
 (defn cambridge [word]
       (if (and (re-find #"\w+" word) (> (count word) 1))
@@ -1136,3 +947,73 @@
           (.write wrt status))
         (with-open [rdr (-> (.getInputStream con) InputStreamReader. BufferedReader.)]
           (apply str (line-seq rdr)))))
+
+(defn typer [character]
+      (let [c (int character)]
+        (cond
+          (> c 64)
+            :character
+          (and (< c 58) (> c 47))
+            :number
+          (#{32 10} c)
+            :whitespace
+          :else
+            :punc)))
+
+(defn tokener [string]
+      (loop [[i & n] string buf [] out [] type nil]
+            (if i 
+              (do
+                (condp = type
+                     (typer i)
+                      (recur n (conj buf i) out type)
+                     nil
+                      (recur (cons i n) buf out (typer i))
+                     (recur (cons i n) [] (conj out [type (apply str buf)]) (typer i))))
+              (conj out [type (apply str buf)]))))
+
+(def make-pattern (comp seq (partial map first) tokener))
+
+(defmulti === (fn [x y]
+                  (cond
+                    (map? x)
+                      :map
+                    (and (not (keyword? x)) (ifn? x))
+                      :callable)) :default nil)
+(defmethod === :callable [x y] (x y))
+(defmethod === nil [x y] (= x y))
+(defmethod === :map [x y]
+  (cond
+    (and (< 0 (:count x)) (= y (:type x)))
+      true
+    (and (> 0 (:count x)) (not= y (:type x)))
+      true
+    :else
+      false))
+
+(defn matcher
+      ([pattern string]
+       (matcher pattern (make-pattern string) true))
+      ([[pf & pr] [inf & inr] match?]
+       (cond
+         (not (and pf match? inf))
+          (when match? (if inf (cons inf inr) match?))
+         (vector? pf)
+          (some #(matcher % (cons inf inr) match?) pf)
+         (and (map? pf) (== pf inf))
+          (recur (cons (update-in pf [:count] dec) pr) inr match?)
+         (=== pf inf)
+          (recur pr inr match?)
+         :else
+          false)))
+
+(matcher [#{:number :punc} [[{:type :character :count 3}] [{:type :punc :count 3}]]]
+         "1   ")
+
+
+(defn meta-wrapper [x]
+  (let [m (atom {})]
+    (proxy [clojure.lang.IDeref] [clojure.lang.IMeta clojure.lang.IObj] []
+      (meta [] @m)
+      (withMeta [map] (swap! m (constantly map)))
+      (deref [] x))))
