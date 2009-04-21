@@ -780,10 +780,35 @@
 (matcher [#{:number :punc} [[{:type :character :count 3}] [{:type :punc :count 3}]]]
          "1   ")
 
+(def database
+     [[:Art :Jets 40 :jh :sing :pusher]
+      [:Al :Jets 30 :jh :mar :burglar]
+      [:Sam :Jets 20 :col :sing :bookie]
+      [:Clyde :Jets 40 :jh :sing :bookie]
+      [:Mike :Jets 30 :jh :sing :bookie]
+      [:Earl :Sharks 40 :hs :mar :burglar]
+      [:Rick :Sharks 30 :hs :div :burglar]
+      [:Ol :Sharks 30 :col :mar :pusher]
+      [:Neal :Sharks 30 :hs :sing :bookie]
+      [:Dave :Sharks 30 :hs :div :pusher]])
 
-(defn meta-wrapper [x]
-  (let [m (atom {})]
-    (proxy [clojure.lang.IDeref] [clojure.lang.IMeta clojure.lang.IObj] []
-      (meta [] @m)
-      (withMeta [map] (swap! m (constantly map)))
-      (deref [] x))))
+
+(defn score [code guess]
+      (if (= code guess)
+        [4,0]
+        [(apply + (map {true 1 false 0} (map = [4 4 4 4] [4 4 4 3])))]))
+
+
+
+
+(defn meta-chars
+  ([string] (meta-chars string {}))
+  ([string m]
+   (proxy [CharSequence clojure.lang.IObj Cloneable] []
+     (toString [] string)
+     (length [] (.length string))
+     (charAt [i] (.charAt string i))
+     (subSequence [i n] (.subSequence string i n))
+     (withMeta [a] (meta-chars string a))
+     (clone [] (meta-chars string m))
+     (meta [] m))))
