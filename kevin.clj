@@ -811,4 +811,6 @@
      (subSequence [i n] (.subSequence string i n))
      (withMeta [a] (meta-chars string a))
      (clone [] (meta-chars string m))
+     (equals [obj] (.equals string obj))
+     (hashCode [] (.hashCode string))
      (meta [] m))))
