@@ -563,6 +563,176 @@
 
 
 
+(defn transform [se pred fn]
+      (loop [se (zip/seq-zip se)]
+            (if (zip/end? se)
+              (zip/root se)
+              (if (pred se)
+                (recur (fn se))
+                (recur (zip/next se))))))
+
+(transform '((a · b) · (c · d))
+           #(= "·" (let [c (zip/node %)] (and (symbol? c) (name c))))
+           #(-> % zip/remove (zip/insert-left 'clojure.core/comp)))
+
+(defmacro pl [& forms]
+  (let [x (transform forms
+                     #(= "·" (let [c (zip/node %)] (and (symbol? c) (name c))))
+                     #(-> % zip/remove (zip/insert-left 'clojure.core/comp)))]
+    `(do ~@x)))
+
+(macroexpand '(pl ((c · d) · (a · b))))
+
+(⌽ java.util.concurrent.Callable (fn [a] a))
+
+(⌽ java.util.concurrent.Executors
+   (fn [a] a))
+
+
+(defmacro ⌽ [class fn]
+  (conj
+    (map #(list (second %)
+                ['& 'x]
+                (list 'apply 'fn (first %) 'x))
+         (map #(vector (keyword %) (symbol %))
+              (map #(.getName %) (.getMethods (class class))))) [] [`~class] 'proxy))
+
+(count (.getTypeParameters (second (.getMethods (class "")))))
+
+(.codePointAt "⌽foo" 0)
+9021
+
+(transform '(⌽foo bar baz beep)
+           #(= 9021 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
+           #(-> % (zip/replace (symbol (subs (name (zip/node %)) 1)))
+                (zip/insert-left 'partial)))
+
+(defn random-person [bot]
+      (randth (filter #(not (.equals % (:nick bot)))
+                      (apply concat (map last (everyone-I-see bot))))))
+
+;; (comp randth
+;;       (partial filter #(not (.equals % (:nick bot))))
+;;       (partial apply concat)
+;;       (partial map last)
+;;       everyone-I-see)
+
+(-> '(comp)
+    zip/seq-zip
+    zip/down
+    (zip/insert-right (-> '(map last (everyone-I-see bot))
+                          zip/seq-zip
+                          zip/root))
+    zip/root)
+
+(cons 'partial (take-while #(not (seq? %)) '(map last (everyone-I-see bot))))
+
+(f (comp not seq?) '(map last (everyone-I-see bot)))
+
+
+(loop [exp '(a b (h y (g y))) op ['comp]]
+      (if (and (not (empty? exp)) (seq? (last exp)))
+        (recur (last exp) (conj op (let [x (butlast exp)]
+                                     (if (> (count x) 1)
+                                       (cons 'partial x)
+                                       (first x)))))
+        (seq (concat op exp))))
+
+
+(-> (seq "(comp randth (first a))")
+    zip/seq-zip
+    zip/next
+    (zip/insert-left \newline)
+    zip/next
+    zip/next
+    zip/next
+    zip/next
+    zip/next
+    zip/next
+    zip/next
+    zip/next
+    zip/next
+    zip/next
+    zip/next
+    zip/next
+    zip/next
+    zip/node)
+
+(with-local-vars [depth 0]
+(println
+  (apply str (transform '(comp randth (first a))
+                      #(do % true)
+                      #(let [n (zip/node %)]
+                         (cond
+                           (and (= n \() )))))))
+
+(defn paren-zip [exp])
+
+(defn pipeline [a]
+(loop [exp 'a op ['comp]]
+      (if (and (not (empty? exp)) (seq? (last exp)))
+        (recur (last exp) (conj op (let [x (butlast exp)]
+                                     (if (> (count x) 1)
+                                       (cons 'partial x)
+                                       (first x)))))
+        (seq (concat op exp)))))
+
+(def tp (doto (javax.swing.JTextPane.)
+              (.setPreferredSize (java.awt.Dimension. 800 600))))
+
+(def w (javax.swing.JFrame. "text"))
+
+(def p (doto (javax.swing.JPanel.)
+             (.setPreferredSize (java.awt.Dimension. 800 600))))
+
+(.add p tp)
+(.add w p)
+
+(.pack w)
+(.setVisible w true)
+
+(defmacro pl [& forms]
+  (let [x (transform forms
+                     #(= "·" (let [c (zip/node %)] (and (symbol? c) (name c))))
+                     #(-> % zip/remove (zip/insert-left 'clojure.core/comp)))
+        x (transform x
+                     #(= 9021 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
+                     #(-> % (zip/replace (symbol (subs (name (zip/node %)) 1)))
+                            (zip/insert-left 'partial)))
+        x (transform x
+                     #(and (= 63 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
+                           (> 58 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 1)) 47))
+                     #(let [n (zip/node %)
+                           num (Integer/parseInt (subs (name n) 1))]
+                        (zip/replace % (list 'rand-int num))))]
+    `(do ~@x)))
+
+(pl 
+  ((⌽map first) [[:a :b]]))
+
+((comp first list) :a :b)
+
+((fn [x]
+    (apply concat (reverse (map reverse (partition (int (/ (count x) 2)) x)))))
+ [:a :b :c :d :e :f :g])
+
+(partition 1 [:a :b :c])
+
+(int 1)
+
+(concat )
+
+(macroexpand
+'(pl
+  ((a · b) · (c · ?5))))
+
+(transform '(+ 1 ?4)
+           #(and (= 63 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
+                 (> 58 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 1)) 47))
+           #(let [n (zip/node %)
+                  num (Integer/parseInt (subs (name n) 1))]
+              (zip/replace % (list 'rand-int num))))
+
 (defmulti  max- count :default :else)
 (defmethod max- 0 [_] (throw (Exception. "max- on empty list")))
 (defmethod max- 1 [[x]] x)
@@ -717,6 +887,66 @@
 
 (defn bind [M f]
       (fn [me]))
+
+(defn cambridge [word]
+      (if (and (re-find #"\w+" word) (> (count word) 1))
+        (let [first-letter (first word) last-letter (last word)
+              middle (java.util.LinkedList. (or (butlast (rest word)) ()))]
+          (java.util.Collections/shuffle middle)
+          (str first-letter (apply str middle) last-letter))
+        word))
+
+
+(defn cambridge-sentence [sentence]
+      (.trim
+        (.toString
+          (reduce #(.append % %2)
+                  (StringBuilder.)
+                  (map cambridge (re-seq #"\w+|\W+" sentence))))))
+
+(defmacro fast-proxy [clas fn]
+  (let [class (Class/forName (name `~clas))
+        fun (gensym 'f)]
+    `(let [~fun ~fn]
+       ~(concat `(proxy [~clas] [])
+            (map #(list (symbol (.getName %)) ['& 'args]
+                        `(apply ~fun ~(keyword (.getName %)) ~'args))
+                 (filter #(not= (.getDeclaringClass %) Object) (.getMethods class)))))))
+
+
+(defn skip-nth [n s]
+      (if (> n 0)
+        (lazy-seq (cons (first s) (skip-nth (dec n) (rest s))))
+        (rest s)))
+
+
+(defmacro with-open-proc [cmd bindings & stuff]
+  `(let [proc# (.exec (Runtime/getRuntime) ~cmd)
+         stder# (java.io.BufferedReader. (java.io.InputStreamReader. (.getErrorStream proc#)))
+         stdout# (java.io.BufferedReader. (java.io.InputStreamReader. (.getInputStream proc#)))
+         stdin# (java.io.OutputStreamWriter. (.getOutputStream proc#))]
+        (with-open [~(first bindings) stdout#
+                    ~(second bindings) stdin#
+                    ~(last bindings) stder#]
+          ~@stuff)))
+
+(import '(java.io BufferedReader IOException InputStream InputStreamReader OutputStreamWriter)
+        '(java.net URL URLConnection URLEncoder)
+        '(sun.misc BASE64Encoder))
+
+(def update-url "http://twitter.com/statuses/update.xml")
+
+(defn twitter [username password text]
+      (let [creds (.trim (.encode (BASE64Encoder.) (.getBytes (str username ":" password))))
+            con (doto (.openConnection (URL. update-url))
+                  (.setDoInput true) (.setDoOutput true) (.setUseCaches false)
+                  (.setRequestProperty "Authorization" (str "Basic " creds))
+                  (.setRequestProperty "User-Agent" "clojurebot 10/10"))
+            status (str "status=" (URLEncoder/encode text "UTF-8"))]
+        (with-open [wrt (OutputStreamWriter. (.getOutputStream con))]
+          (.write wrt status))
+        (with-open [rdr (-> (.getInputStream con) InputStreamReader. BufferedReader.)]
+          (apply str (line-seq rdr)))))
 
 (defn typer [character]
       (let [c (int character)]
