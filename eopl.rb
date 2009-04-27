@@ -10,6 +10,7 @@ apply_env = λ{|environment, name|
   environment.each {|i| r=i[1] unless i[0] != name}
   r}
 
+whitespace = λ{|char| " \n\t"[char]}
 
 expression = λ{|string, n, o|
   diff_exp = λ{|string, n, o|
@@ -41,7 +42,7 @@ expression = λ{|string, n, o|
   }
   symbol = λ{|string, n, o|
     buf=""
-    while n < string.length and string[n].chr != " " do
+    while n < string.length and !whitespace.call string[n].chr do
       buf += string[n].chr
       n += 1
     end
@@ -50,7 +51,7 @@ expression = λ{|string, n, o|
   }
   number = λ{|string, n, o|
     buf=""
-    while n < string.length and string[n].chr != " " and string[n].chr[/[0-9]/] != nil do
+    while n < string.length and !whitespace.call string[n].chr and string[n].chr[/[0-9]/] != nil do
       buf += string[n].chr
       n += 1
     end
@@ -83,7 +84,6 @@ value_of = λ{|ast, environment|
   end
 }
 
-test = "let x = -(5, 2) in -(x, 1)"
-ast =  expression.call(test,0,Array.new)
-p ast
-p value_of.call(ast, empty_env.call)
+run = λ{|string| value_of.call(expression.call(string,0,Array.new), empty_env.call)}
+
+p run.call("let x = -(5, 2) in -(x, 1)")
