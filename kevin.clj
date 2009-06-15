@@ -1,4 +1,4 @@
-(in-ns 'kevin)
+;(in-ns 'kevin)
 
 (clojure.core/refer 'clojure.core)
 
@@ -35,8 +35,6 @@
 					""
 					(let [h (make-line b)]
 						(if (nil? h) h (str v h)))))))
-
-
 
 (defn file-lazy-strings
 			"takes a seq of characters, returns lazy seq of strings, newline as seperater"
@@ -244,56 +242,6 @@
               [:scan x (/ x y)]))
         [64 4 2 4])
 
-(defn show
-  ([x] (show x nil))
-  ([x i]
-      (let [c (if (class? x) x (class x))
-            items (sort
-                    (for [m (concat (.getFields c)
-                                    (.getMethods c)
-                                    (.getConstructors c))]
-                      (let [static? (bit-and Modifier/STATIC
-                                             (.getModifiers m))
-                            method? (instance? Method m)
-                            ctor?   (instance? Constructor m)
-                            text (if ctor?
-                                   (str "(" (apply str (interpose ", "
-(.getParameterTypes m))) ")")
-                                   (str
-                                     (if (pos? static?) "static ")
-                                     (.getName m) " : "
-                                     (if method?
-                                       (str (.getReturnType m) " ("
-                                            (count (.getParameterTypes m)) ")")
-                                       (str (.getType m)))))]
-                        [(- static?) method? text (str m) m])))]
-        (if i
-          (last (nth items i))
-          (do (println "=== " c " ===")
-            (doseq [[e i] (map list items (iterate inc 0))]
-              (printf "[%2d] %s\n" i (nth e 2))))))))
-
-(import '(java.io BufferedReader
-                  InputStreamReader))
-
-(defn system [cmd-string]
-  (let [process (.. Runtime getRuntime (exec cmd-string))
-        reader (BufferedReader.
-                (InputStreamReader.
-                 (.getInputStream process)))]
-    (apply str (rest (interpose "\n" (line-seq reader))))))
-
-
-
-
-(def a (system "svn -v --xml --limit 5 log  https://clojure.svn.sourceforge.net/svnroot/clojure")
-
-(def b "svn -v --xml --limit 5 log  https://clojure.svn.sourceforge.net/svnroot/clojure")
-
-(def a
-(clojure.xml/parse
-  (.getInputStream (.. Runtime getRuntime (exec b))))
-)
 (defn partition-with [pred col]
       (if col
         (let [x (split-with pred col)]
@@ -301,61 +249,12 @@
         nil))
 
 
-(defn sandbox [func]
-      (let [perms (java.security.Permissions.)
-            domain (java.security.ProtectionDomain.
-                     (java.security.CodeSource. nil
-                                                (cast java.security.cert.Certificate nil))
-                     perms)
-            context (java.security.AccessControlContext. (into-array [domain]))
-            pA (proxy [java.security.PrivilegedAction] [] (run [] (func)))]
-        (System/setSecurityManager (SecurityManager.))
-        (java.security.AccessController/doPrivileged
-          pA context)))
-
-(sandbox 
-#(doto (-> "foo.bar" java.io.File. java.io.FileWriter.) (.write "foo") .close)
-)
 (defn parse-xml-url [url]
       (let [url (java.net.URL. url)
             stream (.openStream url)
             out (clojure.xml/parse stream)
             _ (.close stream)]
         out))
-
-(import '(java.io File FileReader)
-        '(org.supercsv.io CsvMapReader CsvBeanReader CsvListReader)
-        '(org.supercsv.prefs CsvPreference))
-
-(with-open [file (-> "2008-12-19.csv" File. FileReader.)
-            csv (CsvListReader. file (CsvPreference/EXCEL_PREFERENCE))]
-           (doall (map #(into [] %) (take-while #(> (count %) 0) (map #(%) (cycle [#(.read csv)]))))))
-
-(def family-name second)
-
-(defn street [x]
-      (first (drop 4 x)))
-
-(defn city [x]
-      (first (drop 5 x)))
-
-(defn state [x]
-      (first (drop 6 x)))
-
-(defn zip [x]
-      (first (drop 7 x)))
-
-(defn aname [x]
-      (first (drop 17 x)))
-
-(defn dob [x]
-      (first (.split (first (drop 18 x)) " ")))
-
-(defn email [x]
-      (first (drop 21 x)))
-
-(defn im [x]
-      (first (drop 22 x)))
 
 
 (defmacro amb [[v s] & forms]
@@ -381,17 +280,7 @@
 
 
 
-(macroexpand-1 `(amb [v (range 1 10)] (if (not= 8 v) (throw (Exception. "foo")) v)))
-
-
-(amb [v [(do (println :0) 0) 1 (do (println :2) 2) 3 4 5 6 7 8]] (if (not= 8 v) (throw (Exception. "not an eight")) v))
-
-
-
-(sort (fn [a b] (if (and (= a :d) (not= b :a)) 1 (if (= b :d) -1 0)))
-      [:a :b :c :d])
-
-  (defn word-seq [s]
+(defn word-seq [s]
       (re-seq #"[^ ,.]+" s))
 
 (word-seq "Hello, my name is Kevin.")
@@ -894,78 +783,6 @@
             _ (.setAccessible method true)]
         (.invoke method sysloader (into-array Object [(.toURL (java.io.File. path))]))))
 
-(defstruct monad :wrap :pass :value)
-
-(defn new-identity-monad [value]
-      (fn this [& args]
-          (condp = (first args)
-                 :value
-                    value
-                 :pass
-                    (new-identity-monad ((second args) (this :value))))))
-
-(def m (new-identity-monad 1))
-
-((:pass m) m)
-
-(return m inc)
-
-(defn mvector [value]
-      (fn this [& args]
-          (condp = (first args)
-                 :value
-                    (if (vector? value)
-                      value
-                      [value])
-                 :join
-                    (mvector (conj (this :value) (second args)))
-                 :empty
-                    (mvector [])
-                 :+
-                   (mvector (vec (concat (this :value) ((second args) :value)))) 
-                 :pass
-                    (mvector (vec (map (second args) (this :value)))))))
-
-(((((mvector 1) :pass first) :join (mvector 2)) :join (mvector 3)) :value)
-
-((((mvector [1 2 4]) :pass inc) :join 10) :value)
-
-(((mvector [1 2 3]) :+ (mvector [4 5 6])) :value)
-
-(defn mvector [val]
-      (let [value #(if (vector? val)
-                     val
-                     [val])
-            join #(mvector (conj (value) %))
-            empty #(mvector [])
-            + #(mvector (vec (concat (value) (:value %))))
-            pass #(mvector (vec (map % (value))))]
-        {:value (value) :join join :empty empty :+ + :pass pass}))
-
-((((((((mvector 1) :join) 2) :+) (mvector [10 11 12])) :pass) inc) :value)
-
-(defn mmaybe [value])
-
-(defn throw-unsupported [& x]
-      (throw (UnsupportedOperationException.)))
-
-(def monad {:bind throw-unsupported :unit throw-unsupported})
-
-(defn failable [value success]
-      (let [unit #(failable % true)
-            bind #(if success (% value))]
-        (assoc monad
-               :bind bind
-               :unit unit
-               :value value
-               :success success)))
-
-(defn success [x]
-      (failable x true))
-
-(defn failure [x]
-      (failable x false))
-
 (ByteBuffer/allocate 10)
 
 (import '(java.nio ByteBuffer))
@@ -1071,6 +888,66 @@
 (defn bind [M f]
       (fn [me]))
 
+(defn cambridge [word]
+      (if (and (re-find #"\w+" word) (> (count word) 1))
+        (let [first-letter (first word) last-letter (last word)
+              middle (java.util.LinkedList. (or (butlast (rest word)) ()))]
+          (java.util.Collections/shuffle middle)
+          (str first-letter (apply str middle) last-letter))
+        word))
+
+
+(defn cambridge-sentence [sentence]
+      (.trim
+        (.toString
+          (reduce #(.append % %2)
+                  (StringBuilder.)
+                  (map cambridge (re-seq #"\w+|\W+" sentence))))))
+
+(defmacro fast-proxy [clas fn]
+  (let [class (Class/forName (name `~clas))
+        fun (gensym 'f)]
+    `(let [~fun ~fn]
+       ~(concat `(proxy [~clas] [])
+            (map #(list (symbol (.getName %)) ['& 'args]
+                        `(apply ~fun ~(keyword (.getName %)) ~'args))
+                 (filter #(not= (.getDeclaringClass %) Object) (.getMethods class)))))))
+
+
+(defn skip-nth [n s]
+      (if (> n 0)
+        (lazy-seq (cons (first s) (skip-nth (dec n) (rest s))))
+        (rest s)))
+
+
+(defmacro with-open-proc [cmd bindings & stuff]
+  `(let [proc# (.exec (Runtime/getRuntime) ~cmd)
+         stder# (java.io.BufferedReader. (java.io.InputStreamReader. (.getErrorStream proc#)))
+         stdout# (java.io.BufferedReader. (java.io.InputStreamReader. (.getInputStream proc#)))
+         stdin# (java.io.OutputStreamWriter. (.getOutputStream proc#))]
+        (with-open [~(first bindings) stdout#
+                    ~(second bindings) stdin#
+                    ~(last bindings) stder#]
+          ~@stuff)))
+
+(import '(java.io BufferedReader IOException InputStream InputStreamReader OutputStreamWriter)
+        '(java.net URL URLConnection URLEncoder)
+        '(sun.misc BASE64Encoder))
+
+(def update-url "http://twitter.com/statuses/update.xml")
+
+(defn twitter [username password text]
+      (let [creds (.trim (.encode (BASE64Encoder.) (.getBytes (str username ":" password))))
+            con (doto (.openConnection (URL. update-url))
+                  (.setDoInput true) (.setDoOutput true) (.setUseCaches false)
+                  (.setRequestProperty "Authorization" (str "Basic " creds))
+                  (.setRequestProperty "User-Agent" "clojurebot 10/10"))
+            status (str "status=" (URLEncoder/encode text "UTF-8"))]
+        (with-open [wrt (OutputStreamWriter. (.getOutputStream con))]
+          (.write wrt status))
+        (with-open [rdr (-> (.getInputStream con) InputStreamReader. BufferedReader.)]
+          (apply str (line-seq rdr)))))
+
 (defn typer [character]
       (let [c (int character)]
         (cond
@@ -1141,3 +1018,38 @@
         (if rest
           (recur fn (fn init one) rest)
           (fn init one))))
+
+(def database
+     [[:Art :Jets 40 :jh :sing :pusher]
+      [:Al :Jets 30 :jh :mar :burglar]
+      [:Sam :Jets 20 :col :sing :bookie]
+      [:Clyde :Jets 40 :jh :sing :bookie]
+      [:Mike :Jets 30 :jh :sing :bookie]
+      [:Earl :Sharks 40 :hs :mar :burglar]
+      [:Rick :Sharks 30 :hs :div :burglar]
+      [:Ol :Sharks 30 :col :mar :pusher]
+      [:Neal :Sharks 30 :hs :sing :bookie]
+      [:Dave :Sharks 30 :hs :div :pusher]])
+
+
+(defn score [code guess]
+      (if (= code guess)
+        [4,0]
+        [(apply + (map {true 1 false 0} (map = [4 4 4 4] [4 4 4 3])))]))
+
+
+
+
+(defn meta-chars
+  ([string] (meta-chars string {}))
+  ([string m]
+   (proxy [CharSequence clojure.lang.IObj Cloneable] []
+     (toString [] string)
+     (length [] (.length string))
+     (charAt [i] (.charAt string i))
+     (subSequence [i n] (.subSequence string i n))
+     (withMeta [a] (meta-chars string a))
+     (clone [] (meta-chars string m))
+     (equals [obj] (.equals string obj))
+     (hashCode [] (.hashCode string))
+     (meta [] m))))
