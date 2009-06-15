@@ -1132,3 +1132,12 @@
 
 (matcher [#{:number :punc} [[{:type :character :count 3}] [{:type :punc :count 3}]]]
          "1   ")
+
+
+(defn foldr
+      ([fn ls]
+        (foldr fn (first ls) (rest ls)))
+      ([fn init [one & rest]]
+        (if rest
+          (recur fn (fn init one) rest)
+          (fn init one))))
