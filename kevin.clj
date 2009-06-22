@@ -1044,3 +1044,89 @@
      (equals [obj] (.equals string obj))
      (hashCode [] (.hashCode string))
      (meta [] m))))
+
+
+
+(import 'java.util.Calendar)
+
+(defn beats []
+  (let [d (java.util.Date.)]
+    (/ (+ (.getSeconds d)
+        (* 60 (.getMinutes d))
+        (* 60 60 (.getHours d)))
+       86.4)))
+
+
+
+(require '[clojure.contrib.sql :as sql])
+
+(def db {:classname "org.apache.derby.jdbc.EmbeddedDriver"
+         :subprotocol "derby"
+         :subname "/home/hiredman/derby.db"
+         :create true})
+
+(sql/with-connection
+        db
+        (apply sql/create-table
+               :test
+               [:id :integer "PRIMARY KEY" "GENERATED ALWAYS AS IDENTITY"]
+               [:created :timestamp "NOT NULL" "DEFAULT CURRENT_TIMESTAMP"]
+               {:data :blob
+                :meta :clob}))
+
+
+(defn write [value meta]
+  (sql/with-connection db
+    (sql/insert-values :test
+      [:data :meta]
+      [(.getBytes (prn-str value)) (str "")])
+    (sql/with-query-results rs ["values IDENTITY_VAL_LOCAL()"]
+        (-> rs first first second))))
+
+(defn read- [id]
+  (sql/with-connection db
+    (sql/with-query-results rs [(str "select * from test where id=" id)]
+      (update-in (first rs)
+        [:data]
+        #(read-string (String. (.getBytes % 1 (.length %))))))))
+
+(defn delete [id]
+  (sql/with-connection db
+    (sql/delete-rows :test ["id=?" id])))
+
+
+(import '(java.util.concurrent BlockingQueue SynchronousQueue ArrayBlockingQueue))
+
+(defstruct token :count :value)
+
+(defn thread-factory
+  ([#^BlockingQueue in term pred #^String name #^BlockingQueue out]
+    (.start
+      (Thread.
+        (fn []
+          (let [t (.take in)]
+            (cond
+              (= term t)
+                nil
+              (pred t)
+                (do
+                  (println name)
+                  (.put out term))
+              :else
+                (do
+                  (.put out (update-in t [:count] inc))
+                  (recur)))))
+        name))
+    out)
+  ([in term pred name]
+    (thread-factory in term pred name (ArrayBlockingQueue. 2))))
+
+(defn g [thread-count pass-count]
+  (let [in (ArrayBlockingQueue. 2) f #(= pass-count (:count %))]
+    (loop [x 2 #^BlockingQueue i (thread-factory in :end f "1")]
+      (if (> thread-count x)
+        (recur (inc x) (thread-factory i :end f (Integer/toString x)))
+        (thread-factory i :end f (Integer/toString x) in)))
+    (.put in (struct token 0 :foo))))
+
+(set! *warn-on-reflection* true)
