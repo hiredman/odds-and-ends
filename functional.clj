@@ -1,41 +1,41 @@
 (require '[clojure.zip :as zip])
 (import '(java.util LinkedList Collections))
 
-;(load-file "/home/kpd/odds-and-ends/functional.clj")
+;;(load-file "/home/hiredman/odds-and-ends/functional.clj")
 
-(defn shuffle
-      "return a shuffled collection of the same type
-      and constituted from the same elementss as the
-      collection passed in"
-      [x]
-      (let [a (LinkedList. x)]
-        (Collections/shuffle a)
-        (cond
-          (vector? x) (vec a)
-          (set? x)    (set a)
-          (seq? x)    (seq a))))
+;;(defn shuffle
+;;      "return a shuffled collection of the same type
+;;      and constituted from the same elementss as the
+;;      collection passed in"
+;;      [x]
+;;      (let [a (LinkedList. x)]
+;;        (Collections/shuffle a)
+;;        (cond
+;;          (vector? x) (vec a)
+;;          (set? x)    (set a)
+;;          (seq? x)    (seq a))))
 
 (defn transform
-      "ugh, read the source. this started as a very specific function
-      and turned into a very generic one."
-      [se pred fn adv fin]
-      (if (fin se)
-        se
-        (if (pred se)
-          (recur (adv (fn se)) pred fn adv fin)
-          (recur (adv se) pred fn adv fin))))
+  "ugh, read the source. this started as a very specific function
+  and turned into a very generic one."
+  [se pred fn adv fin]
+  (if (fin se)
+    se
+    (if (pred se)
+      (recur (adv (fn se)) pred fn adv fin)
+      (recur (adv se) pred fn adv fin))))
 
 (defn transforml
-      "like transformr, but walks the zipper from the left"
-      [se pred fn]
-      (transform se pred fn zip/next zip/end?))
+  "like transformr, but walks the zipper from the left"
+  [se pred fn]
+  (transform se pred fn zip/next zip/end?))
 
 (defn transformr
-      "takes a zipper, a predicate, and a function
-      walks the zipper from the current node towards the left
-      until the the end. fn is applied to any loc where pred is true"
-      [se pred fn]
-      (transform se pred fn zip/prev (comp not zip/prev)))
+  "takes a zipper, a predicate, and a function
+  walks the zipper from the current node towards the left
+  until the the end. fn is applied to any loc where pred is true"
+  [se pred fn]
+  (transform se pred fn zip/prev (comp not zip/prev)))
 
 (def #^{:doc "fast forward the loc of a zipper to the lastnode reached by zip/next"}
      fast-fwd
@@ -92,16 +92,37 @@
                   #(= 8597 (and (symbol? (zip/node %)) (.codePointAt (name (zip/node %)) 0)))
                   #(-> % (zip/replace (list 'flip (symbol (subs (name (zip/node %)) 1)))))))
 
+(defn lambda
+  [zip]
+  (transformr zip
+              #(let [n (zip/node %)]
+                 (if (symbol? n)
+                   (let [lam (first (name n))]
+                     (= lam \λ))))
+              #(-> % (zip/replace
+                       (let [[_ & vs] (name (zip/node %))]
+                         (list 'fn (vec (map (comp symbol str) vs)) 
+                               (zip/node (zip/next %)))))
+                 zip/right zip/remove)))
+
+(defn pl-vector [zip]
+  (transforml zip
+              (comp vector? zip/node)
+              #(-> %  (zip/replace
+                        (-> % zip/node seq zip/seq-zip fast-fwd lambda zip/root vec)))))
+
 (defmacro pl
   "replaces a $ b with (a b) walking right to left
   replaces a · b with (comp a b) left to right
   ⌽a with (uncurry a) left to right
   ↕a with (flip a) left to right"
   [& forms]
-  `(do ~@(-> forms zip/seq-zip fast-fwd dollar-sign-application
-             interpunc-comp zip/root zip/seq-zip
-             prefix-uncurry zip/root zip/seq-zip
-             prefix-flip zip/root)))
+  `(do ~@(-> forms zip/seq-zip fast-fwd lambda zip/root zip/seq-zip fast-fwd
+             dollar-sign-application
+             interpunc-comp zip/root  zip/seq-zip
+             prefix-uncurry  zip/root zip/seq-zip 
+             prefix-flip zip/root zip/seq-zip fast-fwd lambda
+             zip/root zip/seq-zip pl-vector zip/root)))
 
 ;; (assert (= '(do (inc (inc 1))) (macroexpand-1 '(pl inc $ inc $ 1))))
 ;; (assert (= '(do ((flip map) (range 3) inc)) (macroexpand-1 '(pl (↕map range $ 3 inc)))))
