@@ -19,6 +19,7 @@
 (def wishlist-price
   (comp #(BigDecimal. %)
         (partial into-array Character/TYPE)
+        (partial filter (partial not= \,))
         rest first :content last
         (partial filter #(= "totalPrice" (-> % :attrs :class)))
         (partial filter #(= :td (:tag %)))
