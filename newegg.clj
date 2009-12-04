@@ -27,4 +27,8 @@
         zip-soup
         wishlist))
 
-(wishlist-price 8795214)
+(comment 
+  user=> (wishlist-price 8795214)
+  147.95M
+  user=>
+)
